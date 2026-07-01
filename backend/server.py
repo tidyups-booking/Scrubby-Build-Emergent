@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+from twilio.rest import Client as TwilioClient
 
 
 ROOT_DIR = Path(__file__).parent
@@ -60,10 +61,41 @@ async def root():
     return {"message": "Tidyups Cleaning API"}
 
 
+def _send_lead_sms(quote: "Quote"):
+    sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+    to_number = os.environ.get("LEAD_ALERT_TO")
+    if not all([sid, token, from_number, to_number]):
+        logger.warning("Twilio not fully configured; skipping SMS alert")
+        return
+    parts = [
+        "New Tidyups lead!",
+        f"Name: {quote.name}",
+        f"Phone: {quote.phone}",
+        f"Service: {quote.service_type}",
+    ]
+    if quote.bedrooms or quote.bathrooms:
+        parts.append(f"Beds/Baths: {quote.bedrooms or '-'}/{quote.bathrooms or '-'}")
+    if quote.address:
+        parts.append(f"Area: {quote.address}")
+    body = "\n".join(parts)
+    try:
+        client = TwilioClient(sid, token)
+        client.messages.create(body=body, from_=from_number, to=to_number)
+        logger.info("Lead SMS sent to %s", to_number)
+    except Exception as e:
+        logger.error("Failed to send lead SMS: %s", e)
+
+
 @api_router.post("/quotes", response_model=Quote)
 async def create_quote(payload: QuoteCreate):
     quote = Quote(**payload.model_dump())
     await db.quotes.insert_one(quote.model_dump())
+    try:
+        _send_lead_sms(quote)
+    except Exception as e:
+        logger.error("SMS alert error: %s", e)
     return quote
 
 
