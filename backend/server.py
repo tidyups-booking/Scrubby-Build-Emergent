@@ -29,6 +29,8 @@ class QuoteCreate(BaseModel):
     email: Optional[str] = None
     service_type: str
     property_type: Optional[str] = None
+    bedrooms: Optional[str] = None
+    bathrooms: Optional[str] = None
     address: Optional[str] = None
     preferred_date: Optional[str] = None
     message: Optional[str] = None
@@ -43,6 +45,8 @@ class Quote(BaseModel):
     email: Optional[str] = None
     service_type: str
     property_type: Optional[str] = None
+    bedrooms: Optional[str] = None
+    bathrooms: Optional[str] = None
     address: Optional[str] = None
     preferred_date: Optional[str] = None
     message: Optional[str] = None

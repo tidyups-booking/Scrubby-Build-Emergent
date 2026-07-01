@@ -89,6 +89,11 @@ export default function Admin() {
                 <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-white/40" /> <a href={`tel:${q.phone}`} className="hover:text-brand-pink">{q.phone}</a></p>
                 {q.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-white/40" /> {q.email}</p>}
                 {q.property_type && <p className="text-white/50">Property: {q.property_type}</p>}
+                {(q.bedrooms || q.bathrooms) && (
+                  <p className="text-white/50">
+                    {q.bedrooms && `${q.bedrooms} bed`}{q.bedrooms && q.bathrooms && " · "}{q.bathrooms && `${q.bathrooms} bath`}
+                  </p>
+                )}
                 {q.address && <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-white/40" /> {q.address}</p>}
                 {q.preferred_date && <p className="text-white/50">Preferred: {q.preferred_date}</p>}
                 {q.message && <p className="mt-2 rounded-lg bg-black/25 p-3 text-white/70">{q.message}</p>}

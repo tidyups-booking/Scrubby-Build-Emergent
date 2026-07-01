@@ -80,3 +80,5 @@ export const FAQS = [
 
 export const SERVICE_OPTIONS = SERVICES.map((s) => s.title).concat(["Other / Not Sure"]);
 export const PROPERTY_OPTIONS = ["House", "Apartment / Condo", "Office", "Airbnb / Rental", "Commercial Space", "Other"];
+export const BEDROOM_OPTIONS = ["Studio", "1", "2", "3", "4", "5", "6+"];
+export const BATHROOM_OPTIONS = ["1", "1.5", "2", "2.5", "3", "4", "5+"];

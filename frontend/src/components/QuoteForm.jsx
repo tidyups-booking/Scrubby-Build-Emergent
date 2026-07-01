@@ -3,7 +3,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
-import { SERVICE_OPTIONS, PROPERTY_OPTIONS } from "@/lib/data";
+import { SERVICE_OPTIONS, PROPERTY_OPTIONS, BEDROOM_OPTIONS, BATHROOM_OPTIONS } from "@/lib/data";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -12,7 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const empty = {
   name: "", phone: "", email: "", service_type: "",
-  property_type: "", address: "", preferred_date: "", message: "",
+  property_type: "", bedrooms: "", bathrooms: "", address: "", preferred_date: "", message: "",
 };
 
 export default function QuoteForm({ compact = false }) {
@@ -108,6 +108,32 @@ export default function QuoteForm({ compact = false }) {
             </SelectTrigger>
             <SelectContent className="bg-panel2 border-brand-magenta/30 text-white">
               {PROPERTY_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s} className="focus:bg-brand-magenta/20">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Bedrooms</label>
+          <Select value={form.bedrooms} onValueChange={(v) => setForm((f) => ({ ...f, bedrooms: v }))}>
+            <SelectTrigger data-testid="quote-bedrooms" className={inputCls + " h-[46px]"}>
+              <SelectValue placeholder="How many?" />
+            </SelectTrigger>
+            <SelectContent className="bg-panel2 border-brand-magenta/30 text-white">
+              {BEDROOM_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s} className="focus:bg-brand-magenta/20">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Bathrooms</label>
+          <Select value={form.bathrooms} onValueChange={(v) => setForm((f) => ({ ...f, bathrooms: v }))}>
+            <SelectTrigger data-testid="quote-bathrooms" className={inputCls + " h-[46px]"}>
+              <SelectValue placeholder="How many?" />
+            </SelectTrigger>
+            <SelectContent className="bg-panel2 border-brand-magenta/30 text-white">
+              {BATHROOM_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s} className="focus:bg-brand-magenta/20">{s}</SelectItem>
               ))}
             </SelectContent>
