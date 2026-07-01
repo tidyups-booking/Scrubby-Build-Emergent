@@ -1,0 +1,81 @@
+{
+  "theme": "light",
+  "archetype": "1 (Organic & Earthy with High-Contrast Modern Twist)",
+  "colors": {
+    "background": "#FAF9F6",
+    "foreground": "#0F241C",
+    "primary": "#183629",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#E2F1E8",
+    "secondary_foreground": "#0F241C",
+    "accent": "#CCF081",
+    "accent_foreground": "#0F241C",
+    "muted": "#EAEBE7",
+    "muted_foreground": "#5C6A64",
+    "border": "rgba(24, 54, 41, 0.15)"
+  },
+  "typography": {
+    "headings": "Cabinet Grotesk, sans-serif",
+    "body": "Outfit, sans-serif",
+    "instructions": "Import Cabinet Grotesk from Fontshare (https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500,700,400,900&display=swap) and Outfit from Google Fonts. Use tracking-tight on all large headings (H1, H2)."
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing Philosophy. Use py-20 to py-32 for main sections. Use large gaps (gap-6 or gap-8).",
+    "services_grid": "Bento 'Tetris' grid. Mix squares and talls. Avoid generic 3-column equal heights. Use col-span-2 or row-span-2 intentionally to create asymmetry.",
+    "container_padding": "px-6 md:px-12 lg:px-24 mx-auto max-w-7xl"
+  },
+  "surfaces_and_components": {
+    "cards": "Solid background (#FFFFFF or #E2F1E8) with 1px border (border-black/5). No muddy drop shadows. Use rounded-2xl or rounded-3xl.",
+    "header": "Crystal Glassmorphism. bg-[#FAF9F6]/80 with backdrop-blur-xl and border-b border-black/5. MUST be sticky with z-50. Include logo, links, and Phone Call CTA.",
+    "buttons": "Primary CTA (Quote): background accent (#CCF081) with foreground text (#0F241C). Secondary (Call): background primary (#183629) with white text. Apply hover:scale-105 transition-transform.",
+    "inputs": "Use customized Shadcn inputs: rounded-xl, bg-white, 1px border-[#183629]/20, focus:ring-[#CCF081].",
+    "icons": "Use lucide-react. Standardize stroke-width to 1.5 for elegance."
+  },
+  "media": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1721932423849-e9033192b190?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHw0fHxzcG90bGVzcyUyMG1vZGVybiUyMGxpdmluZyUyMHJvb20lMjBzdW5saWdodHxlbnwwfHx8fDE3ODI4NjczMDd8MA&ixlib=rb-4.1.0&q=85",
+      "description": "A bright living room filled with furniture and large windows. Use for Hero or About background."
+    },
+    "gallery": [
+      {
+         "type": "kitchen",
+         "url": "https://images.unsplash.com/photo-1682888813913-e13f18692019?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBraXRjaGVuJTIwY291bnRlciUyMGNsZWFufGVufDB8fHx8MTc4Mjg2NzMwOHww&ixlib=rb-4.1.0&q=85",
+         "description": "Spotless modern kitchen"
+      },
+      {
+         "type": "office",
+         "url": "https://images.pexels.com/photos/9300768/pexels-photo-9300768.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+         "description": "Clean commercial office space"
+      },
+      {
+         "type": "eco_supplies",
+         "url": "https://images.unsplash.com/photo-1528740561666-dc2479dc08ab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwyfHxlY28lMjBmcmllbmRseSUyMGNsZWFuaW5nJTIwc3VwcGxpZXN8ZW58MHx8fHwxNzgyODY3MzA4fDA&ixlib=rb-4.1.0&q=85",
+         "description": "Eco-friendly spray bottles on a table"
+      }
+    ],
+    "team": {
+      "url": "https://images.unsplash.com/photo-1732395805034-e0bf859665e5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBjbGVhbmVyJTIwc21pbGluZ3xlbnwwfHx8fDE3ODI4NjczMDh8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Professional cleaner standing outside"
+    }
+  },
+  "components_to_use": [
+    "lucide-react",
+    "shadcn/button",
+    "shadcn/input",
+    "shadcn/textarea",
+    "shadcn/accordion",
+    "shadcn/card"
+  ],
+  "accessibility_and_testing": {
+    "data_testid_requirement": "All interactive and key informational elements MUST include a data-testid attribute.",
+    "contrast": "Ensure any text over images uses a dark/light gradient overlay for readability to meet APCA contrast standards."
+  },
+  "specific_section_instructions": {
+    "hero": "Bold H1 (e.g., text-5xl md:text-7xl tracking-tighter). The image can sit in a massive rounded container alongside or underneath the text. Do not cover the entire screen with a muddy overlay.",
+    "stats": "Display stats (2000+ clients, 15+ years, 5.0 rating) with large typography (text-5xl+) in the primary color (#183629).",
+    "services_bento": "List the services (Home, Recurring, Move-out/in, Deep cleaning, Commercial, Airbnb, Post-construction, Eco-friendly). Make 'Deep cleaning' or 'Eco-friendly' span larger blocks for visual hierarchy.",
+    "why_choose_us": "Present as clean list items or small cards with Lucide icons (Shield, Leaf, Clock, Sparkles).",
+    "quote_form": "Build a comprehensive lead form (name, phone, email, service type, address, message). Place it cleanly inside a rounded-3xl card with #FFFFFF bg.",
+    "footer": "Reverse the contrast. Make the footer background #0F241C and text #FAF9F6. Very large padding (py-24)."
+  }
+}
