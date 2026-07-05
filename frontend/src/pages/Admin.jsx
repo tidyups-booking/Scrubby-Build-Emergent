@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import {
-  Lock, Loader2, RefreshCw, Phone, Mail, MapPin, Inbox, Upload, Trash2, ImageIcon, Images,
+  Lock, Loader2, RefreshCw, Phone, Mail, MapPin, Inbox, Upload, Trash2, ImageIcon, Images, GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -146,6 +146,8 @@ function ImageManager({ password }) {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState("");
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
   const heroInput = useRef(null);
   const galleryInput = useRef(null);
 
@@ -194,6 +196,27 @@ function ImageManager({ password }) {
     }
   };
 
+  const persistOrder = async (ordered) => {
+    try {
+      await axios.post(`${API}/site-images/reorder`, { order: ordered.map((g) => g.id) }, { headers: { "X-Admin-Password": password } });
+      toast.success("Order saved.");
+    } catch {
+      toast.error("Could not save order.");
+      load();
+    }
+  };
+
+  const onDrop = (dropIndex) => {
+    if (dragIndex === null || dragIndex === dropIndex) { setDragIndex(null); setOverIndex(null); return; }
+    const next = [...gallery];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(dropIndex, 0, moved);
+    setGallery(next);
+    setDragIndex(null);
+    setOverIndex(null);
+    persistOrder(next);
+  };
+
   return (
     <div className="space-y-10">
       <p className="text-sm text-white/50">Changes go live on your site instantly — no redeploy needed.</p>
@@ -238,19 +261,34 @@ function ImageManager({ password }) {
             <p className="mt-3 text-white/50">No gallery photos yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {gallery.map((g) => (
-              <div key={g.id} data-testid={`manage-image-${g.id}`} className="group relative overflow-hidden rounded-2xl border border-white/10">
-                <img src={resolveImageUrl(g.url)} alt={g.label} className="h-40 w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
-                {g.label && <p className="absolute bottom-2 left-3 text-sm font-semibold text-white">{g.label}</p>}
-                <button data-testid={`delete-image-${g.id}`} disabled={busy} onClick={() => remove(g.id)}
-                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-red-600">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+          <>
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-white/40"><GripVertical className="h-3.5 w-3.5" /> Drag photos to reorder how they appear on your site.</p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3" data-testid="gallery-reorder-grid">
+              {gallery.map((g, i) => (
+                <div
+                  key={g.id}
+                  data-testid={`manage-image-${g.id}`}
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragOver={(e) => { e.preventDefault(); setOverIndex(i); }}
+                  onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+                  onDrop={() => onDrop(i)}
+                  className={`group relative cursor-grab overflow-hidden rounded-2xl border transition-all active:cursor-grabbing ${overIndex === i && dragIndex !== null ? "border-brand-pink ring-2 ring-brand-magenta/50" : "border-white/10"} ${dragIndex === i ? "opacity-40" : ""}`}
+                >
+                  <img src={resolveImageUrl(g.url)} alt={g.label} className="pointer-events-none h-40 w-full object-cover" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
+                  <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-xs font-semibold text-white">
+                    <GripVertical className="h-3.5 w-3.5" /> {i + 1}
+                  </div>
+                  {g.label && <p className="pointer-events-none absolute bottom-2 left-3 text-sm font-semibold text-white">{g.label}</p>}
+                  <button data-testid={`delete-image-${g.id}`} disabled={busy} onClick={() => remove(g.id)}
+                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

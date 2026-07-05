@@ -202,6 +202,75 @@ class TestHeroReplace:
         mongo.close()
 
 
+class TestReorder:
+    ORIGINAL_ORDER = ["Serving Edmonton", "Home & Office Service", "Our Team", "On The Road"]
+
+    def _get_gallery(self):
+        return requests.get(f"{BASE_URL}/api/site-images").json()["gallery"]
+
+    def test_reorder_requires_admin(self):
+        r = requests.post(f"{BASE_URL}/api/site-images/reorder", json={"order": []})
+        assert r.status_code == 401
+
+    def test_reorder_wrong_password(self):
+        r = requests.post(
+            f"{BASE_URL}/api/site-images/reorder",
+            json={"order": []},
+            headers={"X-Admin-Password": "nope"},
+        )
+        assert r.status_code == 401
+
+    def test_reorder_reverses_and_restores(self):
+        gallery = self._get_gallery()
+        assert len(gallery) >= 4
+        original_ids = [g["id"] for g in gallery]
+        original_labels = [g["label"] for g in gallery]
+        assert original_labels[:4] == self.ORIGINAL_ORDER, f"Baseline mismatch: {original_labels}"
+
+        # Reverse order
+        reversed_ids = list(reversed(original_ids))
+        r = requests.post(
+            f"{BASE_URL}/api/site-images/reorder",
+            json={"order": reversed_ids},
+            headers={"X-Admin-Password": ADMIN_PASSWORD},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json().get("ok") is True
+
+        # Verify GET returns reversed ordering with sequential 'order' fields
+        after = self._get_gallery()
+        assert [g["id"] for g in after] == reversed_ids
+        for idx, g in enumerate(after):
+            assert g["order"] == idx, f"expected order={idx} got {g['order']} for {g['label']}"
+
+        # Restore original order (per iteration note: leave DB unchanged)
+        r2 = requests.post(
+            f"{BASE_URL}/api/site-images/reorder",
+            json={"order": original_ids},
+            headers={"X-Admin-Password": ADMIN_PASSWORD},
+        )
+        assert r2.status_code == 200
+        restored = self._get_gallery()
+        assert [g["label"] for g in restored[:4]] == self.ORIGINAL_ORDER
+        for idx, g in enumerate(restored):
+            assert g["order"] == idx
+
+    def test_reorder_ignores_hero_or_bogus_ids(self):
+        """Reorder should silently skip non-gallery/nonexistent IDs and still return 200."""
+        gallery_before = self._get_gallery()
+        original_ids = [g["id"] for g in gallery_before]
+        # Include a bogus id — endpoint should not error
+        r = requests.post(
+            f"{BASE_URL}/api/site-images/reorder",
+            json={"order": original_ids + ["nonexistent-id-xyz"]},
+            headers={"X-Admin-Password": ADMIN_PASSWORD},
+        )
+        assert r.status_code == 200
+        # Order preserved
+        after = self._get_gallery()
+        assert [g["id"] for g in after[:len(original_ids)]] == original_ids
+
+
 class TestQuoteRegression:
     def test_create_quote_still_works(self):
         payload = {

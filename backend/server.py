@@ -262,6 +262,21 @@ async def delete_site_image(image_id: str, x_admin_password: Optional[str] = Hea
     return {"ok": True}
 
 
+class ReorderPayload(BaseModel):
+    order: List[str]
+
+
+@api_router.post("/site-images/reorder")
+async def reorder_site_images(payload: ReorderPayload, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    for idx, image_id in enumerate(payload.order):
+        await db.site_images.update_one(
+            {"id": image_id, "section": "gallery", "is_deleted": False},
+            {"$set": {"order": idx}},
+        )
+    return {"ok": True}
+
+
 @api_router.get("/site-images/file/{path:path}")
 async def serve_site_image(path: str):
     try:
