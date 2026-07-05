@@ -1,32 +1,33 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Lock, Loader2, RefreshCw, Phone, Mail, MapPin, Inbox } from "lucide-react";
+import {
+  Lock, Loader2, RefreshCw, Phone, Mail, MapPin, Inbox, Upload, Trash2, ImageIcon, Images,
+} from "lucide-react";
 import { toast } from "sonner";
-import { BRAND } from "@/lib/data";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { BRAND, resolveImageUrl } from "@/lib/data";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function Admin() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
-  const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const load = async (pw) => {
+  const login = async (e) => {
+    e.preventDefault();
+    if (!password) return;
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/quotes`, { headers: { "X-Admin-Password": pw } });
-      setQuotes(res.data);
+      await axios.post(`${API}/admin/login`, {}, { headers: { "X-Admin-Password": password } });
       setAuthed(true);
-    } catch (e) {
+    } catch {
       toast.error("Wrong password.");
     } finally {
       setLoading(false);
     }
   };
-
-  const login = (e) => { e.preventDefault(); if (password) load(password); };
 
   if (!authed) {
     return (
@@ -39,7 +40,7 @@ export default function Admin() {
           className="glass w-full max-w-sm rounded-3xl p-8"
         >
           <div className="brand-gradient-bg mx-auto flex h-14 w-14 items-center justify-center rounded-2xl"><Lock className="h-7 w-7 text-white" /></div>
-          <h1 className="font-display mt-5 text-center text-2xl font-extrabold">Leads Dashboard</h1>
+          <h1 className="font-display mt-5 text-center text-2xl font-extrabold">Admin Dashboard</h1>
           <p className="mt-1 text-center text-sm text-white/50">Tidyups admin access</p>
           <input
             data-testid="admin-password"
@@ -59,16 +60,48 @@ export default function Admin() {
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold"><span className="brand-gradient-text">Quote</span> Leads</h1>
-          <p className="text-sm text-white/50">{quotes.length} total request{quotes.length !== 1 ? "s" : ""}</p>
-        </div>
-        <button data-testid="admin-refresh-btn" onClick={() => load(password)} className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold transition-colors hover:border-brand-pink hover:text-brand-pink">
+      <h1 className="font-display text-3xl font-extrabold"><span className="brand-gradient-text">Tidyups</span> Admin</h1>
+      <Tabs defaultValue="leads" className="mt-6">
+        <TabsList className="bg-panel border border-white/10">
+          <TabsTrigger value="leads" data-testid="tab-leads" className="data-[state=active]:bg-brand-magenta/20 data-[state=active]:text-brand-pink">Quote Leads</TabsTrigger>
+          <TabsTrigger value="images" data-testid="tab-images" className="data-[state=active]:bg-brand-magenta/20 data-[state=active]:text-brand-pink">Site Images</TabsTrigger>
+        </TabsList>
+        <TabsContent value="leads" className="mt-6"><Leads password={password} /></TabsContent>
+        <TabsContent value="images" className="mt-6"><ImageManager password={password} /></TabsContent>
+      </Tabs>
+      <p className="mt-10 text-center text-xs text-white/30">{BRAND.name} · Internal use only</p>
+    </div>
+  );
+}
+
+function Leads({ password }) {
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/quotes`, { headers: { "X-Admin-Password": password } });
+      setQuotes(res.data);
+      setLoaded(true);
+    } catch {
+      toast.error("Could not load leads.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!loaded && !loading) load();
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <p className="text-sm text-white/50">{quotes.length} total request{quotes.length !== 1 ? "s" : ""}</p>
+        <button data-testid="admin-refresh-btn" onClick={load} className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold transition-colors hover:border-brand-pink hover:text-brand-pink">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
-
       {quotes.length === 0 ? (
         <div className="glass flex flex-col items-center rounded-3xl py-20 text-center">
           <Inbox className="h-12 w-12 text-white/30" />
@@ -103,7 +136,123 @@ export default function Admin() {
           ))}
         </div>
       )}
-      <p className="mt-10 text-center text-xs text-white/30">{BRAND.name} · Internal use only</p>
+    </div>
+  );
+}
+
+function ImageManager({ password }) {
+  const [hero, setHero] = useState(null);
+  const [gallery, setGallery] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [label, setLabel] = useState("");
+  const heroInput = useRef(null);
+  const galleryInput = useRef(null);
+
+  const load = async () => {
+    try {
+      const res = await axios.get(`${API}/site-images`);
+      setHero(res.data.hero || null);
+      setGallery(res.data.gallery || []);
+      setLoaded(true);
+    } catch {
+      toast.error("Could not load images.");
+    }
+  };
+  if (!loaded) load();
+
+  const upload = async (file, section) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file."); return; }
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("section", section);
+    if (section === "gallery") fd.append("label", label);
+    try {
+      await axios.post(`${API}/site-images/upload`, fd, { headers: { "X-Admin-Password": password } });
+      toast.success(section === "hero" ? "Hero image updated!" : "Photo added!");
+      setLabel("");
+      await load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id) => {
+    setBusy(true);
+    try {
+      await axios.delete(`${API}/site-images/${id}`, { headers: { "X-Admin-Password": password } });
+      toast.success("Photo removed.");
+      await load();
+    } catch {
+      toast.error("Could not remove photo.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-10">
+      <p className="text-sm text-white/50">Changes go live on your site instantly — no redeploy needed.</p>
+
+      {/* Hero */}
+      <section data-testid="hero-manager">
+        <div className="mb-3 flex items-center gap-2 text-brand-pink"><ImageIcon className="h-5 w-5" /><h2 className="font-display text-lg font-bold text-white">Hero Image</h2></div>
+        <div className="glass overflow-hidden rounded-2xl">
+          {hero ? (
+            <img src={resolveImageUrl(hero.url)} alt="Hero" className="h-56 w-full object-cover sm:h-72" />
+          ) : (
+            <div className="flex h-56 items-center justify-center text-white/40">No hero image</div>
+          )}
+          <div className="flex items-center justify-between gap-3 p-4">
+            <span className="text-sm text-white/50">Shown at the top of your landing page</span>
+            <input ref={heroInput} type="file" accept="image/*" className="hidden" data-testid="hero-upload-input"
+              onChange={(e) => { upload(e.target.files[0], "hero"); e.target.value = ""; }} />
+            <button data-testid="hero-replace-btn" disabled={busy} onClick={() => heroInput.current?.click()}
+              className="brand-gradient-bg flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Replace
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery */}
+      <section data-testid="gallery-manager">
+        <div className="mb-3 flex items-center gap-2 text-brand-pink"><Images className="h-5 w-5" /><h2 className="font-display text-lg font-bold text-white">Our Work Gallery</h2></div>
+        <div className="glass mb-5 flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Caption (optional)" data-testid="gallery-label-input"
+            className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none focus:border-brand-pink" />
+          <input ref={galleryInput} type="file" accept="image/*" className="hidden" data-testid="gallery-upload-input"
+            onChange={(e) => { upload(e.target.files[0], "gallery"); e.target.value = ""; }} />
+          <button data-testid="gallery-add-btn" disabled={busy} onClick={() => galleryInput.current?.click()}
+            className="brand-gradient-bg flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Add Photo
+          </button>
+        </div>
+        {gallery.length === 0 ? (
+          <div className="glass flex flex-col items-center rounded-2xl py-14 text-center">
+            <ImageIcon className="h-10 w-10 text-white/30" />
+            <p className="mt-3 text-white/50">No gallery photos yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {gallery.map((g) => (
+              <div key={g.id} data-testid={`manage-image-${g.id}`} className="group relative overflow-hidden rounded-2xl border border-white/10">
+                <img src={resolveImageUrl(g.url)} alt={g.label} className="h-40 w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
+                {g.label && <p className="absolute bottom-2 left-3 text-sm font-semibold text-white">{g.label}</p>}
+                <button data-testid={`delete-image-${g.id}`} disabled={busy} onClick={() => remove(g.id)}
+                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-red-600">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

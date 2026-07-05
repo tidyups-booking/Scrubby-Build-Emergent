@@ -82,3 +82,10 @@ export const SERVICE_OPTIONS = SERVICES.map((s) => s.title).concat(["Other / Not
 export const PROPERTY_OPTIONS = ["House", "Apartment / Condo", "Office", "Airbnb / Rental", "Commercial Space", "Other"];
 export const BEDROOM_OPTIONS = ["Studio", "1", "2", "3", "4", "5", "6+"];
 export const BATHROOM_OPTIONS = ["1", "1.5", "2", "2.5", "3", "4", "5+"];
+
+// Resolve a site-image url that may be absolute (external) or a backend-relative path.
+export const resolveImageUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  return `${process.env.REACT_APP_BACKEND_URL}${url}`;
+};

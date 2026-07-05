@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 3: Full backend + frontend testing of the NEW Site Image Manager (hero + gallery via Emergent object storage) plus regression on quote/leads flow. All 23 backend tests pass (12 new site-image tests + 11 pre-existing). Landing page renders dynamic hero-image and 4 gallery-item-* tiles sourced from /api/site-images. Admin login gated, tabs (Quote Leads, Site Images) both work. Gallery upload via UI (multipart FormData + X-Admin-Password header) returned 200 and tile appeared; delete button soft-deleted it and count returned to baseline. Hero replace test verified new hero replaces prior via API (original hero restored via direct DB update). DB left clean: 1 hero (Our Fleet) + 4 gallery items, no leftover TEST_ images.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_site_images.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_site_images.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py grew to ~300 lines and mixes storage helpers, models, routes, and Twilio SMS. Consider extracting object-storage helpers into /app/backend/storage.py and site-images routes into /app/backend/routes/site_images.py before adding more features.",
+    "Storage init uses a module-level `_storage_key` cache and never handles rotation/expiry. If Emergent returns 401 later, subsequent uploads will silently keep the stale key. Consider re-initializing on 401/403 from put_object.",
+    "put_object / get_object are synchronous `requests` calls inside async endpoints and block the event loop. For upload throughput consider aiohttp or `await run_in_threadpool(...)`.",
+    "Upload endpoint reads full file into memory before size-check; a malicious 100MB upload would still be fully buffered before the 10MB check. Consider streaming or checking `file.size`/Content-Length up front.",
+    "DELETE /api/site-images/{id} soft-deletes but doesn't remove the underlying object from Emergent storage — orphaned blobs will accumulate over time. Add a cleanup job or hard-delete via the storage API.",
+    "resolveImageUrl only checks `url.startsWith('http')` — a protocol-relative URL (`//example.com/x.png`) would be wrongly prefixed with REACT_APP_BACKEND_URL. Minor edge case only."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_site_images.py"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100%"},
+  "test_credentials": "Admin password: tidyups2026 (verified). No other credentials required — object storage uses backend EMERGENT_LLM_KEY server-side.",
+  "seed_data_creation": "Test run created 1 TEST_ImgIter Regression lead in the quotes collection (no delete endpoint exists for leads — same as prior iterations). All test-uploaded site images (1 gallery + 1 hero) were deleted; original hero was restored via pymongo un-soft-delete. Final DB state: 1 hero + 4 gallery (matches seed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend URL: https://tidyups-quote.preview.emergentagent.com. New test file: /app/backend/tests/test_site_images.py (12 tests). Existing: /app/backend/tests/backend_test.py (11 tests). Both green under pytest with xdist. Object storage integration is REAL — tests upload a hand-built 1x1 PNG (see _tiny_png_bytes helper) and verify the served /api/site-images/file/{path} returns an image/* content-type. Hero replace test uses pymongo directly to restore the seeded hero after test since the API has no un-soft-delete endpoint; MONGO_URL and DB_NAME are read from env by the test.",
+  "rca of the issue": "N/A — new feature verified working end-to-end. No bugs found."
+}

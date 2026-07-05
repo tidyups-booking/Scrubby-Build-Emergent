@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import {
@@ -7,8 +8,10 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
-import { BRAND, IMAGES, SERVICES, FEATURES, STATS, TESTIMONIALS, GALLERY, FAQS } from "@/lib/data";
+import { BRAND, IMAGES, SERVICES, FEATURES, STATS, TESTIMONIALS, GALLERY, FAQS, resolveImageUrl } from "@/lib/data";
 import QuoteForm from "@/components/QuoteForm";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -81,7 +84,8 @@ function Navbar() {
   );
 }
 
-function Hero() {
+function Hero({ heroUrl }) {
+  const img = heroUrl ? resolveImageUrl(heroUrl) : IMAGES.livingRoom;
   return (
     <div id="top" className="relative overflow-hidden pt-28 sm:pt-36">
       <div className="aurora pointer-events-none absolute inset-0 -z-10" />
@@ -116,7 +120,7 @@ function Hero() {
 
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} className="relative">
           <div className="animate-floaty relative overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl shadow-brand-violet/30">
-            <img src={IMAGES.livingRoom} alt="Freshly cleaned modern living room" className="h-[420px] w-full object-cover sm:h-[520px]" />
+            <img src={img} alt="Tidyups Cleaning" data-testid="hero-image" className="h-[420px] w-full object-cover sm:h-[520px]" />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
           </div>
           <div className="glass absolute -bottom-5 -left-3 flex items-center gap-3 rounded-2xl px-5 py-3 shadow-xl sm:-left-6">
@@ -242,7 +246,8 @@ function Stats() {
   );
 }
 
-function Gallery() {
+function Gallery({ items }) {
+  const list = (items && items.length ? items.map((g) => ({ src: resolveImageUrl(g.url), label: g.label })) : GALLERY);
   return (
     <Section id="gallery" className="py-20 lg:py-28">
       <div className="mb-12 max-w-2xl">
@@ -250,8 +255,8 @@ function Gallery() {
         <h2 className="font-display mt-3 text-3xl font-extrabold sm:text-4xl lg:text-5xl">See the transformation</h2>
       </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {GALLERY.map((g, i) => (
-          <motion.div key={g.label} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={i % 3}
+        {list.map((g, i) => (
+          <motion.div key={g.label + i} variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={i % 3}
             data-testid={`gallery-item-${i}`}
             className={`group relative overflow-hidden rounded-2xl border border-white/10 ${i === 0 ? "col-span-2 lg:col-span-1" : ""}`}>
             <img src={g.src} alt={g.label} className="h-52 w-full object-cover transition-transform duration-700 group-hover:scale-110 sm:h-64" />
@@ -398,14 +403,24 @@ function Footer() {
 }
 
 export default function Landing() {
+  const [heroUrl, setHeroUrl] = useState(null);
+  const [gallery, setGallery] = useState([]);
+
+  useEffect(() => {
+    axios.get(`${API}/site-images`).then((res) => {
+      setHeroUrl(res.data.hero?.url || null);
+      setGallery(res.data.gallery || []);
+    }).catch(() => {});
+  }, []);
+
   return (
     <main>
       <Navbar />
-      <Hero />
+      <Hero heroUrl={heroUrl} />
       <Services />
       <Why />
       <Stats />
-      <Gallery />
+      <Gallery items={gallery} />
       <Reviews />
       <QuoteSection />
       <FAQ />
