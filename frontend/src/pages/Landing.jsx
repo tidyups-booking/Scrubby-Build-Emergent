@@ -195,13 +195,14 @@ function Services() {
   );
 }
 
-function Why() {
+function Why({ whyUrl }) {
+  const img = whyUrl ? resolveImageUrl(whyUrl) : IMAGES.supplies;
   return (
     <Section id="why" className="py-20 lg:py-28">
       <div className="grid items-center gap-12 lg:grid-cols-2">
         <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className="relative order-2 lg:order-1">
           <div className="overflow-hidden rounded-[2rem] border border-white/10">
-            <img src={IMAGES.supplies} alt="Professional eco-friendly cleaning supplies" className="h-[460px] w-full object-cover" />
+            <img src={img} alt="Why choose Tidyups" data-testid="why-image" className="h-[460px] w-full object-cover" />
           </div>
           <div className="glass absolute -right-3 bottom-8 rounded-2xl px-6 py-4 text-center shadow-xl">
             <p className="font-display text-3xl font-extrabold brand-gradient-text">15+</p>
@@ -404,11 +405,13 @@ function Footer() {
 
 export default function Landing() {
   const [heroUrl, setHeroUrl] = useState(null);
+  const [whyUrl, setWhyUrl] = useState(null);
   const [gallery, setGallery] = useState([]);
 
   useEffect(() => {
     axios.get(`${API}/site-images`).then((res) => {
       setHeroUrl(res.data.hero?.url || null);
+      setWhyUrl(res.data.why?.url || null);
       setGallery(res.data.gallery || []);
     }).catch(() => {});
   }, []);
@@ -418,7 +421,7 @@ export default function Landing() {
       <Navbar />
       <Hero heroUrl={heroUrl} />
       <Services />
-      <Why />
+      <Why whyUrl={whyUrl} />
       <Stats />
       <Gallery items={gallery} />
       <Reviews />

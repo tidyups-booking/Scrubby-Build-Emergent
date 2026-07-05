@@ -44,7 +44,7 @@ class TestGetSiteImages:
         r = requests.get(f"{BASE_URL}/api/site-images")
         assert r.status_code == 200
         data = r.json()
-        assert "hero" in data and "gallery" in data
+        assert "hero" in data and "gallery" in data and "why" in data
         assert data["hero"] is not None
         assert data["hero"]["label"] == "Our Fleet"
         assert data["hero"]["section"] == "hero"
@@ -52,6 +52,7 @@ class TestGetSiteImages:
         assert len(data["gallery"]) >= 4
         # No mongo _id leaks
         assert "_id" not in data["hero"]
+        assert "_id" not in data["why"]
         for g in data["gallery"]:
             assert "_id" not in g
             assert g["section"] == "gallery"
@@ -61,6 +62,20 @@ class TestGetSiteImages:
         labels = {g["label"] for g in r.json()["gallery"]}
         for expected in {"Serving Edmonton", "Home & Office Service", "Our Team", "On The Road"}:
             assert expected in labels
+
+    def test_why_section_seeded(self):
+        """NEW: verify 'why' section exists with expected default label and URL."""
+        r = requests.get(f"{BASE_URL}/api/site-images")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["why"] is not None, "Expected 'why' object in site-images response"
+        why = data["why"]
+        assert why["section"] == "why"
+        assert why["label"] == "Why Tidyups"
+        assert isinstance(why["url"], str) and len(why["url"]) > 0
+        # Default should point to the customer-assets Weekend Plans URL when unmodified
+        assert "Weekend%20Plans" in why["url"] or "Weekend Plans" in why["url"] or why["url"].startswith("/api/site-images/file/"), \
+            f"Unexpected why url: {why['url']}"
 
 
 class TestUploadAuth:
@@ -199,6 +214,61 @@ class TestHeroReplace:
         assert restored is not None
         assert restored["id"] == original_id
         assert restored["label"] == "Our Fleet"
+        mongo.close()
+
+
+class TestWhyReplace:
+    """NEW: verify 'why' section replace behaves like hero (soft-delete previous)."""
+    def test_why_upload_replaces_previous_and_restore(self):
+        from pymongo import MongoClient
+        mongo = MongoClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017"))
+        db = mongo[os.environ.get("DB_NAME", "test_database")]
+
+        original = requests.get(f"{BASE_URL}/api/site-images").json()["why"]
+        assert original is not None, "Baseline 'why' image missing"
+        original_id = original["id"]
+
+        files = {"file": ("TEST_why.png", PNG_BYTES, "image/png")}
+        r = requests.post(
+            f"{BASE_URL}/api/site-images/upload",
+            files=files, data={"section": "why", "label": "TEST_why"},
+            headers={"X-Admin-Password": ADMIN_PASSWORD},
+        )
+        assert r.status_code == 200, r.text
+        new_why = r.json()
+        assert new_why["section"] == "why"
+        assert new_why["url"].startswith("/api/site-images/file/")
+        new_id = new_why["id"]
+        _created_ids.append(new_id)
+
+        # GET returns the new one
+        current = requests.get(f"{BASE_URL}/api/site-images").json()["why"]
+        assert current is not None
+        assert current["id"] == new_id
+        assert current["id"] != original_id
+
+        # File is served
+        rf = requests.get(f"{BASE_URL}{new_why['url']}")
+        assert rf.status_code == 200
+        assert rf.headers.get("Content-Type", "").startswith("image/")
+
+        # Only one active 'why' doc
+        active_count = db.site_images.count_documents({"section": "why", "is_deleted": False})
+        assert active_count == 1, f"expected 1 active why, got {active_count}"
+
+        # Cleanup: delete uploaded why + restore original
+        rd = requests.delete(
+            f"{BASE_URL}/api/site-images/{new_id}",
+            headers={"X-Admin-Password": ADMIN_PASSWORD},
+        )
+        assert rd.status_code == 200
+        _created_ids.remove(new_id)
+
+        db.site_images.update_one({"id": original_id}, {"$set": {"is_deleted": False}})
+        restored = requests.get(f"{BASE_URL}/api/site-images").json()["why"]
+        assert restored is not None
+        assert restored["id"] == original_id
+        assert restored["label"] == "Why Tidyups"
         mongo.close()
 
 

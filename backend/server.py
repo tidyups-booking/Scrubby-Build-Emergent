@@ -93,10 +93,13 @@ class Quote(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
-# section: "hero" | "gallery"
+# section: "hero" | "gallery" | "why"
+WHY_IMAGE_URL = "https://customer-assets.emergentagent.com/job_tidyups-quote/artifacts/ysqa7ta1_Weekend%20Plans.jpg"
+
 SEED_IMAGES = [
     {"section": "hero", "label": "Our Fleet", "order": 0,
      "url": "https://customer-assets.emergentagent.com/job_tidyups-quote/artifacts/pdg75ki2_branded%20vehicles.png"},
+    {"section": "why", "label": "Why Tidyups", "order": 0, "url": WHY_IMAGE_URL},
     {"section": "gallery", "label": "Serving Edmonton", "order": 0,
      "url": "https://customer-assets.emergentagent.com/job_tidyups-quote/artifacts/nencmbh4_edmonton%20branded%20vehicles%20v01.jpg"},
     {"section": "gallery", "label": "Home & Office Service", "order": 1,
@@ -110,22 +113,35 @@ SEED_IMAGES = [
 
 async def seed_site_images():
     count = await db.site_images.count_documents({})
-    if count > 0:
-        return
-    docs = []
-    for s in SEED_IMAGES:
-        docs.append({
+    if count == 0:
+        docs = []
+        for s in SEED_IMAGES:
+            docs.append({
+                "id": str(uuid.uuid4()),
+                "section": s["section"],
+                "label": s["label"],
+                "order": s["order"],
+                "url": s["url"],
+                "storage_path": None,
+                "is_deleted": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        await db.site_images.insert_many(docs)
+        logger.info("Seeded %d site images", len(docs))
+    # Ensure the "why" slot exists for databases seeded before it was added.
+    why_exists = await db.site_images.count_documents({"section": "why", "is_deleted": False})
+    if why_exists == 0:
+        await db.site_images.insert_one({
             "id": str(uuid.uuid4()),
-            "section": s["section"],
-            "label": s["label"],
-            "order": s["order"],
-            "url": s["url"],
+            "section": "why",
+            "label": "Why Tidyups",
+            "order": 0,
+            "url": WHY_IMAGE_URL,
             "storage_path": None,
             "is_deleted": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-    await db.site_images.insert_many(docs)
-    logger.info("Seeded %d site images", len(docs))
+        logger.info("Ensured 'why' site image")
 
 
 # ---------------- Routes ----------------
@@ -201,8 +217,9 @@ def _clean_image(doc):
 async def get_site_images():
     docs = await db.site_images.find({"is_deleted": False}).sort("order", 1).to_list(1000)
     hero = next((_clean_image(d) for d in docs if d["section"] == "hero"), None)
+    why = next((_clean_image(d) for d in docs if d["section"] == "why"), None)
     gallery = [_clean_image(d) for d in docs if d["section"] == "gallery"]
-    return {"hero": hero, "gallery": gallery}
+    return {"hero": hero, "why": why, "gallery": gallery}
 
 
 @api_router.post("/site-images/upload")
@@ -213,8 +230,8 @@ async def upload_site_image(
     x_admin_password: Optional[str] = Header(default=None),
 ):
     _check_admin(x_admin_password)
-    if section not in ("hero", "gallery"):
-        raise HTTPException(status_code=400, detail="section must be 'hero' or 'gallery'")
+    if section not in ("hero", "gallery", "why"):
+        raise HTTPException(status_code=400, detail="section must be 'hero', 'why' or 'gallery'")
     ext = (file.filename.rsplit(".", 1)[-1] if "." in file.filename else "png").lower()
     content_type = MIME_TYPES.get(ext, file.content_type or "image/png")
     if not content_type.startswith("image/"):
@@ -232,8 +249,8 @@ async def upload_site_image(
     stored_path = result.get("path", storage_path)
     url = f"/api/site-images/file/{stored_path}"
 
-    if section == "hero":
-        await db.site_images.update_many({"section": "hero", "is_deleted": False}, {"$set": {"is_deleted": True}})
+    if section in ("hero", "why"):
+        await db.site_images.update_many({"section": section, "is_deleted": False}, {"$set": {"is_deleted": True}})
         order = 0
     else:
         last = await db.site_images.find({"section": "gallery", "is_deleted": False}).sort("order", -1).to_list(1)

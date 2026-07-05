@@ -142,6 +142,7 @@ function Leads({ password }) {
 
 function ImageManager({ password }) {
   const [hero, setHero] = useState(null);
+  const [why, setWhy] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -149,12 +150,14 @@ function ImageManager({ password }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
   const heroInput = useRef(null);
+  const whyInput = useRef(null);
   const galleryInput = useRef(null);
 
   const load = async () => {
     try {
       const res = await axios.get(`${API}/site-images`);
       setHero(res.data.hero || null);
+      setWhy(res.data.why || null);
       setGallery(res.data.gallery || []);
       setLoaded(true);
     } catch {
@@ -173,7 +176,7 @@ function ImageManager({ password }) {
     if (section === "gallery") fd.append("label", label);
     try {
       await axios.post(`${API}/site-images/upload`, fd, { headers: { "X-Admin-Password": password } });
-      toast.success(section === "hero" ? "Hero image updated!" : "Photo added!");
+      toast.success(section === "gallery" ? "Photo added!" : "Image updated!");
       setLabel("");
       await load();
     } catch (e) {
@@ -235,6 +238,27 @@ function ImageManager({ password }) {
             <input ref={heroInput} type="file" accept="image/*" className="hidden" data-testid="hero-upload-input"
               onChange={(e) => { upload(e.target.files[0], "hero"); e.target.value = ""; }} />
             <button data-testid="hero-replace-btn" disabled={busy} onClick={() => heroInput.current?.click()}
+              className="brand-gradient-bg flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Replace
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Us */}
+      <section data-testid="why-manager">
+        <div className="mb-3 flex items-center gap-2 text-brand-pink"><ImageIcon className="h-5 w-5" /><h2 className="font-display text-lg font-bold text-white">"Why Tidyups" Image</h2></div>
+        <div className="glass overflow-hidden rounded-2xl">
+          {why ? (
+            <img src={resolveImageUrl(why.url)} alt="Why Us" className="h-56 w-full object-cover sm:h-72" />
+          ) : (
+            <div className="flex h-56 items-center justify-center text-white/40">No image</div>
+          )}
+          <div className="flex items-center justify-between gap-3 p-4">
+            <span className="text-sm text-white/50">Shown in the "Reliable, detailed &amp; done right" section</span>
+            <input ref={whyInput} type="file" accept="image/*" className="hidden" data-testid="why-upload-input"
+              onChange={(e) => { upload(e.target.files[0], "why"); e.target.value = ""; }} />
+            <button data-testid="why-replace-btn" disabled={busy} onClick={() => whyInput.current?.click()}
               className="brand-gradient-bg flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Replace
             </button>
