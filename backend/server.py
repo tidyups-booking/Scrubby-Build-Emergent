@@ -71,6 +71,10 @@ class QuoteCreate(BaseModel):
     bedrooms: Optional[str] = None
     bathrooms: Optional[str] = None
     address: Optional[str] = None
+    street_address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
     preferred_date: Optional[str] = None
     message: Optional[str] = None
 
@@ -87,6 +91,10 @@ class Quote(BaseModel):
     bedrooms: Optional[str] = None
     bathrooms: Optional[str] = None
     address: Optional[str] = None
+    street_address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
     preferred_date: Optional[str] = None
     message: Optional[str] = None
     status: str = "new"
@@ -166,7 +174,10 @@ def _send_lead_sms(quote: "Quote"):
     ]
     if quote.bedrooms or quote.bathrooms:
         parts.append(f"Beds/Baths: {quote.bedrooms or '-'}/{quote.bathrooms or '-'}")
-    if quote.address:
+    addr_bits = [b for b in [quote.street_address, quote.city, quote.province, quote.postal_code] if b]
+    if addr_bits:
+        parts.append(f"Address: {', '.join(addr_bits)}")
+    elif quote.address:
         parts.append(f"Area: {quote.address}")
     body = "\n".join(parts)
     try:

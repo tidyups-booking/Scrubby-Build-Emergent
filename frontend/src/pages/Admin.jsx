@@ -127,7 +127,11 @@ function Leads({ password }) {
                     {q.bedrooms && `${q.bedrooms} bed`}{q.bedrooms && q.bathrooms && " · "}{q.bathrooms && `${q.bathrooms} bath`}
                   </p>
                 )}
-                {q.address && <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-white/40" /> {q.address}</p>}
+                {(q.street_address || q.city || q.province || q.postal_code) ? (
+                  <p data-testid={`lead-address-${q.id}`} className="flex items-center gap-2"><MapPin className="h-4 w-4 text-white/40" /> {[q.street_address, q.city, q.province, q.postal_code].filter(Boolean).join(", ")}</p>
+                ) : q.address ? (
+                  <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-white/40" /> {q.address}</p>
+                ) : null}
                 {q.preferred_date && <p className="text-white/50">Preferred: {q.preferred_date}</p>}
                 {q.message && <p className="mt-2 rounded-lg bg-black/25 p-3 text-white/70">{q.message}</p>}
               </div>

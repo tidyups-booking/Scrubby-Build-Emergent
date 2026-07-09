@@ -82,6 +82,11 @@ export const SERVICE_OPTIONS = SERVICES.map((s) => s.title).concat(["Other / Not
 export const PROPERTY_OPTIONS = ["House", "Apartment / Condo", "Office", "Airbnb / Rental", "Commercial Space", "Other"];
 export const BEDROOM_OPTIONS = ["Studio", "1", "2", "3", "4", "5", "6+"];
 export const BATHROOM_OPTIONS = ["1", "1.5", "2", "2.5", "3", "4", "5+"];
+export const PROVINCE_OPTIONS = [
+  "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
+  "Northwest Territories", "Nova Scotia", "Nunavut", "Ontario", "Prince Edward Island",
+  "Quebec", "Saskatchewan", "Yukon",
+];
 
 // Resolve a site-image url that may be absolute (external) or a backend-relative path.
 export const resolveImageUrl = (url) => {

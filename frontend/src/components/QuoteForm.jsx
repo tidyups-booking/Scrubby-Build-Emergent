@@ -3,7 +3,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
-import { SERVICE_OPTIONS, PROPERTY_OPTIONS, BEDROOM_OPTIONS, BATHROOM_OPTIONS } from "@/lib/data";
+import { SERVICE_OPTIONS, PROPERTY_OPTIONS, BEDROOM_OPTIONS, BATHROOM_OPTIONS, PROVINCE_OPTIONS } from "@/lib/data";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -12,7 +12,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const empty = {
   name: "", phone: "", email: "", service_type: "",
-  property_type: "", bedrooms: "", bathrooms: "", address: "", preferred_date: "", message: "",
+  property_type: "", bedrooms: "", bathrooms: "",
+  street_address: "", city: "", province: "Alberta", postal_code: "",
+  preferred_date: "", message: "",
 };
 
 export default function QuoteForm({ compact = false }) {
@@ -26,6 +28,10 @@ export default function QuoteForm({ compact = false }) {
     e.preventDefault();
     if (!form.name || !form.phone || !form.service_type) {
       toast.error("Please fill in your name, phone and the service you need.");
+      return;
+    }
+    if (!form.street_address || !form.city || !form.postal_code) {
+      toast.error("Please fill in your street address, city and postal code.");
       return;
     }
     setLoading(true);
@@ -140,8 +146,29 @@ export default function QuoteForm({ compact = false }) {
           </Select>
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Address / area</label>
-          <input data-testid="quote-address" className={inputCls} placeholder="Neighbourhood or full address" value={form.address} onChange={set("address")} />
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Street address *</label>
+          <input data-testid="quote-street-address" className={inputCls} placeholder="123 Main Street NW" value={form.street_address} onChange={set("street_address")} />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">City *</label>
+          <input data-testid="quote-city" className={inputCls} placeholder="Edmonton" value={form.city} onChange={set("city")} />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Province</label>
+          <Select value={form.province} onValueChange={(v) => setForm((f) => ({ ...f, province: v }))}>
+            <SelectTrigger data-testid="quote-province" className={inputCls + " h-[46px]"}>
+              <SelectValue placeholder="Choose province" />
+            </SelectTrigger>
+            <SelectContent className="bg-panel2 border-brand-magenta/30 text-white">
+              {PROVINCE_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s} className="focus:bg-brand-magenta/20">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-brand-pink">Postal code *</label>
+          <input data-testid="quote-postal-code" className={inputCls} placeholder="T6H 5Z5" value={form.postal_code} onChange={set("postal_code")} />
         </div>
         {!compact && (
           <div className="sm:col-span-2">

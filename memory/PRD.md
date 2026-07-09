@@ -23,6 +23,7 @@ Build a landing page for people wanting a quote for Tidyups Cleaning Service.
 
 ## Implemented (as of June 2026)
 - Landing page: hero, services, why-us, dynamic gallery, quote form (with bedrooms/bathrooms)
+- Quote form captures full address: street_address, city, province (dropdown, default Alberta), postal_code — street/city/postal required; legacy `address` field kept for old records (2026-07)
 - Admin dashboard (/admin): lead viewer + site image manager (upload, delete, drag-to-reorder)
 - Twilio SMS alerts for new leads (verified working)
 - Emergent Object Storage for all site images
