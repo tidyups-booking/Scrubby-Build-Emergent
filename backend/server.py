@@ -1,16 +1,19 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, UploadFile, File, Form, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Header, UploadFile, File, Form, Response, Request
+from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import asyncio
 import logging
 import requests
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from twilio.rest import Client as TwilioClient
+import google_sheets as gs
 
 
 ROOT_DIR = Path(__file__).parent
@@ -196,6 +199,7 @@ async def create_quote(payload: QuoteCreate):
         _send_lead_sms(quote)
     except Exception as e:
         logger.error("SMS alert error: %s", e)
+    asyncio.create_task(_sync_quote_to_sheet(quote))
     return quote
 
 
@@ -215,6 +219,90 @@ async def list_quotes(x_admin_password: Optional[str] = Header(default=None)):
 @api_router.post("/admin/login")
 async def admin_login(x_admin_password: Optional[str] = Header(default=None)):
     _check_admin(x_admin_password)
+    return {"ok": True}
+
+
+# ---------------- Google Sheets Sync ----------------
+async def _sync_quote_to_sheet(quote: "Quote"):
+    doc = await db.settings.find_one({"key": gs.TOKENS_KEY})
+    if not doc:
+        return
+    try:
+        creds = await asyncio.to_thread(gs.doc_to_creds, doc)
+        if creds.token != doc["access_token"]:
+            await db.settings.update_one({"key": gs.TOKENS_KEY}, {"$set": gs.creds_to_doc(creds)})
+        await asyncio.to_thread(gs.append_rows, creds, doc["spreadsheet_id"], [gs.quote_to_row(quote.model_dump())])
+        logger.info("Quote synced to Google Sheet")
+    except Exception as e:
+        logger.error("Google Sheets sync failed: %s", e)
+
+
+def _callback_uri(request: Request) -> str:
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    return f"https://{host}/api/oauth/sheets/callback"
+
+
+@api_router.get("/sheets/connect-url")
+async def sheets_connect_url(request: Request, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    if not os.environ.get("GOOGLE_CLIENT_ID") or not os.environ.get("GOOGLE_CLIENT_SECRET"):
+        raise HTTPException(status_code=500, detail="Google credentials not configured")
+    redirect_uri = _callback_uri(request)
+    url, state = gs.build_auth_url(redirect_uri)
+    await db.oauth_states.insert_one({
+        "state": state, "redirect_uri": redirect_uri,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"url": url}
+
+
+@api_router.get("/oauth/sheets/callback")
+async def sheets_callback(code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    if error or not code or not state:
+        return RedirectResponse("/admin?sheets=error")
+    state_doc = await db.oauth_states.find_one_and_delete({"state": state})
+    if not state_doc:
+        return RedirectResponse("/admin?sheets=error")
+    created = datetime.fromisoformat(state_doc["created_at"])
+    if datetime.now(timezone.utc) - created > timedelta(minutes=10):
+        return RedirectResponse("/admin?sheets=error")
+    try:
+        creds = await asyncio.to_thread(gs.exchange_code, code, state_doc["redirect_uri"])
+        email = await asyncio.to_thread(gs.get_user_email, creds)
+        sid = await asyncio.to_thread(gs.create_spreadsheet, creds)
+        token_doc = gs.creds_to_doc(creds)
+        token_doc.update({
+            "key": gs.TOKENS_KEY, "spreadsheet_id": sid, "email": email,
+            "connected_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await db.settings.update_one({"key": gs.TOKENS_KEY}, {"$set": token_doc}, upsert=True)
+        quotes = await db.quotes.find({}, {"_id": 0}).sort("created_at", 1).to_list(1000)
+        if quotes:
+            await asyncio.to_thread(gs.append_rows, creds, sid, [gs.quote_to_row(q) for q in quotes])
+        logger.info("Google Sheets connected (%s), backfilled %d quotes", email, len(quotes))
+        return RedirectResponse("/admin?sheets=connected")
+    except Exception as e:
+        logger.error("Google Sheets connect failed: %s", e)
+        return RedirectResponse("/admin?sheets=error")
+
+
+@api_router.get("/sheets/status")
+async def sheets_status(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    doc = await db.settings.find_one({"key": gs.TOKENS_KEY})
+    if not doc:
+        return {"connected": False}
+    return {
+        "connected": True,
+        "email": doc.get("email", ""),
+        "sheet_url": f"https://docs.google.com/spreadsheets/d/{doc['spreadsheet_id']}",
+    }
+
+
+@api_router.post("/sheets/disconnect")
+async def sheets_disconnect(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    await db.settings.delete_one({"key": gs.TOKENS_KEY})
     return {"ok": True}
 
 

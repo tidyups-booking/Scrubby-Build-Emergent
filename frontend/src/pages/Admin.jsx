@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import {
   Lock, Loader2, RefreshCw, Phone, Mail, MapPin, Inbox, Upload, Trash2, ImageIcon, Images, GripVertical,
+  FileSpreadsheet, ExternalLink, Unplug,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -14,6 +15,17 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sheets = params.get("sheets");
+    if (sheets === "connected") {
+      toast.success("Google Sheets connected! New quotes will sync automatically.");
+    } else if (sheets === "error") {
+      toast.error("Google Sheets connection failed. Please try again.");
+    }
+    if (sheets) window.history.replaceState({}, "", "/admin");
+  }, []);
 
   const login = async (e) => {
     e.preventDefault();
@@ -74,6 +86,94 @@ export default function Admin() {
   );
 }
 
+function SheetsCard({ password }) {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const headers = { "X-Admin-Password": password };
+
+  const load = async () => {
+    try {
+      const res = await axios.get(`${API}/sheets/status`, { headers });
+      setStatus(res.data);
+    } catch {
+      setStatus({ connected: false });
+    }
+  };
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const res = await axios.get(`${API}/sheets/connect-url`, { headers });
+      window.location.href = res.data.url;
+    } catch {
+      toast.error("Could not start Google connection.");
+      setBusy(false);
+    }
+  };
+
+  const disconnect = async () => {
+    try {
+      await axios.post(`${API}/sheets/disconnect`, {}, { headers });
+      toast.success("Google Sheets disconnected.");
+      load();
+    } catch {
+      toast.error("Could not disconnect.");
+    }
+  };
+
+  if (!status) return null;
+
+  return (
+    <div data-testid="sheets-card" className="glass mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15">
+          <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-white">Google Sheets Sync</p>
+          <p data-testid="sheets-status" className="text-xs text-white/50">
+            {status.connected
+              ? `Connected${status.email ? ` as ${status.email}` : ""} · every new quote adds a row`
+              : "Not connected · sync every quote to a Google Sheet in your Drive"}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {status.connected ? (
+          <>
+            <a
+              data-testid="sheets-open-link"
+              href={status.sheet_url} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Open Sheet
+            </a>
+            <button
+              data-testid="sheets-disconnect-btn"
+              onClick={disconnect}
+              className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/60 transition-colors hover:border-red-400/50 hover:text-red-300"
+            >
+              <Unplug className="h-3.5 w-3.5" /> Disconnect
+            </button>
+          </>
+        ) : (
+          <button
+            data-testid="sheets-connect-btn"
+            onClick={connect}
+            disabled={busy}
+            className="flex items-center gap-2 rounded-full bg-emerald-500/15 px-5 py-2.5 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+            Connect Google Sheets
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Leads({ password }) {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -96,6 +196,7 @@ function Leads({ password }) {
 
   return (
     <div>
+      <SheetsCard password={password} />
       <div className="mb-6 flex items-center justify-between">
         <p className="text-sm text-white/50">{quotes.length} total request{quotes.length !== 1 ? "s" : ""}</p>
         <button data-testid="admin-refresh-btn" onClick={load} className="flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold transition-colors hover:border-brand-pink hover:text-brand-pink">

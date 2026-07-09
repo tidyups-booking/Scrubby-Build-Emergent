@@ -19,6 +19,7 @@ Build a landing page for people wanting a quote for Tidyups Cleaning Service.
 - GET /api/quotes — admin only (X-Admin-Password header)
 - POST /api/admin/login
 - GET /api/site-images
+- GET /api/sheets/connect-url, GET /api/oauth/sheets/callback, GET /api/sheets/status, POST /api/sheets/disconnect (Google Sheets OAuth sync)
 - POST /api/site-images (multipart upload), DELETE /api/site-images/{id}, POST /api/site-images/reorder
 
 ## Implemented (as of June 2026)
@@ -29,6 +30,7 @@ Build a landing page for people wanting a quote for Tidyups Cleaning Service.
 - Emergent Object Storage for all site images
 - Deployment fixes: requirements.txt curated manually (no direct-URL wheels), .gitignore allows .env files
 - 2026-06: Re-fixed .gitignore regression (.env/.env.*/*.env patterns re-appeared and were removed); deployment health check PASSED
+- 2026-07: Google Sheets sync — admin "Connect Google Sheets" button (OAuth, backend/google_sheets.py). On connect: creates "Tidyups Quote Submissions" sheet in owner's Drive, backfills all existing quotes, appends a row per new quote (fire-and-forget asyncio task in create_quote). Tokens stored in db.settings {key:"google_sheets"} with auto-refresh. Google OAuth creds in backend/.env (GOOGLE_CLIENT_ID/SECRET). Redirect URIs registered in Google Console for BOTH preview and https://bookmycleaning.xyz. Redirect URI derived from request Host header so it works in both environments. User must click Connect + Google sign-in themselves (test-user restricted app).
 
 ## Critical Notes for Agents
 - DO NOT add .env patterns back to /app/.gitignore — .env files must be committed for Emergent deployment.
