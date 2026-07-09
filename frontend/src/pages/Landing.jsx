@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import {
@@ -396,6 +397,7 @@ function Footer() {
           <div className="flex gap-6">
             <a href={BRAND.phonePrimaryHref} className="hover:text-brand-pink">{BRAND.phonePrimary}</a>
             <span>{BRAND.website}</span>
+            <Link to="/privacy" data-testid="footer-privacy-link" className="hover:text-brand-pink">Privacy Policy</Link>
           </div>
         </div>
       </Section>
