@@ -28,6 +28,6 @@
   "seed_data_creation": "Created 3 TEST_-prefixed quote leads via API/UI (TEST_Jane Doe, TEST_John Full, TEST_UI_User). They remain in DB for main-agent verification if needed.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Backend base URL from frontend/.env is https://tidyups-quote.preview.emergentagent.com. Backend tests live in /app/backend/tests/backend_test.py and are pytest-based. Admin password header is X-Admin-Password. Shadcn Select requires click + 200ms wait + [role=option] click. All flows verified end-to-end and green.",
+  "context_for_next_testing_agent": "Backend base URL from frontend/.env is https://mobile-run-app-1.preview.emergentagent.com. Backend tests live in /app/backend/tests/backend_test.py and are pytest-based. Admin password header is X-Admin-Password. Shadcn Select requires click + 200ms wait + [role=option] click. All flows verified end-to-end and green.",
   "rca of the issue": "N/A - no defects found."
 }

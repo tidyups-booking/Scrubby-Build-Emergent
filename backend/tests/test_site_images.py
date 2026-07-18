@@ -14,7 +14,7 @@ import zlib
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tidyups-quote.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://mobile-run-app-1.preview.emergentagent.com").rstrip("/")
 ADMIN_PASSWORD = "tidyups2026"
 
 

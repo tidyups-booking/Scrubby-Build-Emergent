@@ -27,6 +27,6 @@
   "seed_data_creation": "Created 4 TEST_-prefixed leads during testing (TEST_Jane Doe, TEST_John Full, TEST_BedsBaths Persist, TEST_UI_FullFlow). Admin dashboard shows all 4. No delete endpoint exists to clean them up programmatically; safe to leave for verification.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Backend URL: https://tidyups-quote.preview.emergentagent.com. Tests: /app/backend/tests/backend_test.py (pytest, 11 tests, all green). Twilio SMS is live and confirmed working — sends to +17807185092 from +18255334317 on every new lead. Twilio calls add ~200-300ms latency but do not block/fail the /api/quotes response. Bedrooms/bathrooms fields fully persisted round-trip.",
+  "context_for_next_testing_agent": "Backend URL: https://mobile-run-app-1.preview.emergentagent.com. Tests: /app/backend/tests/backend_test.py (pytest, 11 tests, all green). Twilio SMS is live and confirmed working — sends to +17807185092 from +18255334317 on every new lead. Twilio calls add ~200-300ms latency but do not block/fail the /api/quotes response. Bedrooms/bathrooms fields fully persisted round-trip.",
   "rca of the issue": "N/A - dependency revert verified with no regressions."
 }
