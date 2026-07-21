@@ -20,6 +20,7 @@ import {
   PROVINCES,
 } from '../../constants/data';
 import { submitQuote } from '../../lib/api';
+import { saveLastQuote, getLastQuote } from '../../lib/lastQuote';
 import { GradientButton, OutlineButton, SectionHeader } from '../../components/ui';
 import SelectField from '../../components/SelectField';
 
@@ -62,11 +63,12 @@ function Field({ label, required, value, onChangeText, placeholder, keyboardType
 
 export default function QuoteScreen() {
   const router = useRouter();
-  const { service } = useLocalSearchParams();
+  const { service, bookAgain } = useLocalSearchParams();
   const [form, setForm] = useState(INITIAL);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   useEffect(() => {
     if (service && SERVICE_OPTIONS.includes(service)) {
@@ -74,6 +76,22 @@ export default function QuoteScreen() {
       setSuccess(false);
     }
   }, [service]);
+
+  useEffect(() => {
+    if (!bookAgain) return;
+    getLastQuote().then((saved) => {
+      if (!saved) return;
+      const next = { ...INITIAL };
+      Object.keys(INITIAL).forEach((k) => {
+        if (saved[k]) next[k] = saved[k];
+      });
+      next.preferred_date = '';
+      setForm(next);
+      setPrefilled(true);
+      setSuccess(false);
+      setError('');
+    });
+  }, [bookAgain]);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -97,7 +115,9 @@ export default function QuoteScreen() {
           .join(', ');
       }
       await submitQuote(payload);
+      saveLastQuote(form);
       setSuccess(true);
+      setPrefilled(false);
     } catch (e) {
       setError(e.message || 'Something went wrong. Please try again or call us.');
     } finally {
@@ -145,6 +165,13 @@ export default function QuoteScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <SectionHeader kicker="Free · No obligation" title="Request a Quote" style={{ marginTop: 14 }} />
           <Text style={styles.intro}>Tell us about your space and we'll get right back to you with a price.</Text>
+
+          {prefilled ? (
+            <View style={styles.prefillBanner} testID="book-again-banner">
+              <Ionicons name="flash" size={15} color={COLORS.gold} />
+              <Text style={styles.prefillText}>Prefilled from your last booking — review and send.</Text>
+            </View>
+          ) : null}
 
           <Text style={styles.groupTitle}>Your details</Text>
           <Field label="Full name" required value={form.name} onChangeText={set('name')} placeholder="Jane Smith" testID="input-name" />
@@ -204,6 +231,19 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingHorizontal: 20, paddingBottom: 48 },
   intro: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 14, marginBottom: 10, marginTop: -6 },
+  prefillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,138,61,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,138,61,0.3)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  prefillText: { color: COLORS.gold, fontFamily: FONTS.bodyMedium, fontSize: 13, flex: 1 },
   groupTitle: {
     color: COLORS.gold,
     fontFamily: FONTS.bodySemiBold,

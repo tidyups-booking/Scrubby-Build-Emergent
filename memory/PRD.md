@@ -66,3 +66,8 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
 - PWA: manifest, service worker, icons, meta tags (installable web app).
 - Fixes: hero slot self-heal on startup; tests conftest.py env loading; CI=1 Metro workaround for low inotify limit.
 - All tested: iteration_6.json — backend 19/19, frontend 100%.
+- **Book Again**: after a successful quote submit, the form is saved to AsyncStorage ('tidyups_last_quote',
+  src/lib/lastQuote.js). Home shows a "Welcome back, {name}" card (book-again-card) when saved data exists →
+  taps to /quote?bookAgain=<ts> which prefills all fields (preferred_date cleared as stale) + shows banner
+  (book-again-banner). User still confirms send (protects against accidental production SMS). Self-tested via
+  Playwright end-to-end (localStorage seed → card → prefill verified → cleanup).

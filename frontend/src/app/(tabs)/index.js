@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
 import { STATS, TRUST_BADGES, WHY_US, TESTIMONIALS } from '../../constants/data';
 import { fetchAppImages, resolveImageUrl } from '../../lib/api';
+import { getLastQuote } from '../../lib/lastQuote';
 import { useBusiness } from '../../lib/business';
 import { GradientButton, OutlineButton, SectionHeader, Card, Chip } from '../../components/ui';
 
@@ -15,6 +16,7 @@ const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
 export default function HomeScreen() {
   const router = useRouter();
   const [promos, setPromos] = useState([]);
+  const [lastQuote, setLastQuote] = useState(null);
   const { business, logoUrl } = useBusiness();
 
   useFocusEffect(
@@ -22,6 +24,7 @@ export default function HomeScreen() {
       fetchAppImages()
         .then((data) => setPromos(Array.isArray(data) ? data : []))
         .catch(() => {});
+      getLastQuote().then(setLastQuote);
     }, [])
   );
 
@@ -63,6 +66,29 @@ export default function HomeScreen() {
             onPress={() => Linking.openURL(business.phoneTel)}
           />
         </View>
+
+        {/* Book Again (returning customers) */}
+        {lastQuote ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.bookAgainCard}
+            onPress={() => router.push({ pathname: '/quote', params: { bookAgain: Date.now() } })}
+            testID="book-again-card"
+          >
+            <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bookAgainIcon}>
+              <Ionicons name="repeat" size={20} color="#fff" />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bookAgainTitle}>Welcome back, {lastQuote.name.split(' ')[0]}!</Text>
+              <Text style={styles.bookAgainSub} numberOfLines={1}>
+                Book your {lastQuote.service_type} again — details prefilled.
+              </Text>
+            </View>
+            <View style={styles.bookAgainBtn} testID="book-again-btn">
+              <Ionicons name="arrow-forward" size={17} color={COLORS.pink} />
+            </View>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Banner */}
         <Image source={require('../../../assets/images/banner.jpg')} style={styles.banner} resizeMode="cover" />
@@ -176,6 +202,30 @@ const styles = StyleSheet.create({
   hero: { marginTop: 18 },
   heroTitle: { color: COLORS.text, fontFamily: FONTS.display, fontSize: 38, lineHeight: 44, marginBottom: 14 },
   heroSub: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 15, lineHeight: 23, marginBottom: 22 },
+  bookAgainCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: 'rgba(255,95,176,0.35)',
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 20,
+  },
+  bookAgainIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  bookAgainTitle: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15 },
+  bookAgainSub: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2 },
+  bookAgainBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,95,176,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,95,176,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   banner: {
     width: '100%',
     height: 170,
