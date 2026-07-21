@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
-import { CONTACT } from '../../constants/data';
+import { useBusiness } from '../../lib/business';
 import { SectionHeader, Card } from '../../components/ui';
 
 function ContactRow({ icon, title, sub, onPress, testID }) {
@@ -25,6 +25,7 @@ function ContactRow({ icon, title, sub, onPress, testID }) {
 
 export default function ContactScreen() {
   const router = useRouter();
+  const { business: CONTACT } = useBusiness();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -66,7 +67,7 @@ export default function ContactScreen() {
         <SectionHeader kicker="When we work" title="Business Hours" style={{ marginTop: 32 }} />
         <Card>
           {CONTACT.hours.map((h, i) => (
-            <View key={h.day} style={[styles.hoursRow, i < CONTACT.hours.length - 1 && styles.hoursDivider]}>
+            <View key={i} style={[styles.hoursRow, i < CONTACT.hours.length - 1 && styles.hoursDivider]}>
               <Text style={styles.hoursDay}>{h.day}</Text>
               <Text style={[styles.hoursTime, h.time === 'Closed' && { color: COLORS.textMuted }]}>{h.time}</Text>
             </View>

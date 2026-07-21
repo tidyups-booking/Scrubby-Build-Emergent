@@ -105,6 +105,63 @@ export async function fetchQuotes(password) {
   return res.json();
 }
 
+export async function setImageFit(imageId, fit, password) {
+  const res = await fetch(`${IMAGES_API}/app-images/${imageId}`, {
+    method: 'PATCH',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fit }),
+  });
+  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) throw new Error('Update failed');
+  return res.json();
+}
+
+export async function fetchAppSettings() {
+  const res = await fetch(`${IMAGES_API}/app-settings`);
+  if (!res.ok) throw new Error('Failed to load settings');
+  return res.json();
+}
+
+export async function updateAppSettings(payload, password) {
+  const res = await fetch(`${IMAGES_API}/app-settings`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) throw new Error('Save failed');
+  return res.json();
+}
+
+export async function uploadLogo(asset, password) {
+  const form = new FormData();
+  const name = asset.fileName || asset.name || 'logo.png';
+  const type = asset.mimeType || asset.type || 'image/png';
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(asset.uri)).blob();
+    form.append('file', new File([blob], name, { type: blob.type || type }));
+  } else {
+    form.append('file', { uri: asset.uri, name, type });
+  }
+  const res = await fetch(`${IMAGES_API}/app-settings/logo`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password },
+    body: form,
+  });
+  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) throw new Error('Logo upload failed');
+  return res.json();
+}
+
+export async function resetLogo(password) {
+  const res = await fetch(`${IMAGES_API}/app-settings/logo`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!res.ok) throw new Error('Reset failed');
+  return res.json();
+}
+
 export function formatDate(iso) {
   try {
     const d = new Date(iso);

@@ -18,6 +18,7 @@ import { COLORS, FONTS } from '../constants/theme';
 import { adminLogin, fetchQuotes, formatDate } from '../lib/api';
 import { GradientButton, Chip } from '../components/ui';
 import AdminImages from '../components/AdminImages';
+import AdminBusiness from '../components/AdminBusiness';
 
 const PW_KEY = 'tidyups_admin_pw';
 
@@ -221,10 +222,20 @@ export default function AdminScreen() {
           <Ionicons name="images" size={15} color={tab === 'images' ? '#fff' : COLORS.textMuted} />
           <Text style={[styles.segmentText, tab === 'images' && styles.segmentTextActive]}>Images</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segment, tab === 'business' && styles.segmentActive]}
+          onPress={() => setTab('business')}
+          testID="admin-tab-business"
+        >
+          <Ionicons name="storefront" size={15} color={tab === 'business' ? '#fff' : COLORS.textMuted} />
+          <Text style={[styles.segmentText, tab === 'business' && styles.segmentTextActive]}>Business</Text>
+        </TouchableOpacity>
       </View>
 
       {tab === 'images' ? (
         <AdminImages password={storedPw} />
+      ) : tab === 'business' ? (
+        <AdminBusiness password={storedPw} />
       ) : (
         <>
           {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}

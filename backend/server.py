@@ -7,6 +7,8 @@ import os
 import asyncio
 import logging
 import requests
+import re
+from urllib.parse import quote_plus
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -422,7 +424,8 @@ SEED_APP_IMAGES = [
 
 
 def _clean_app_image(doc):
-    return {"id": doc["id"], "label": doc.get("label", ""), "order": doc.get("order", 0), "url": doc["url"]}
+    return {"id": doc["id"], "label": doc.get("label", ""), "order": doc.get("order", 0), "url": doc["url"],
+            "fit": doc.get("fit", "cover")}
 
 
 async def seed_app_images():
@@ -514,6 +517,120 @@ async def serve_app_image(path: str):
     except Exception:
         raise HTTPException(status_code=404, detail="Image not found")
     return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+
+
+class ImageFitPayload(BaseModel):
+    fit: str
+
+
+@api_router.patch("/app-images/{image_id}")
+async def update_app_image(image_id: str, payload: ImageFitPayload, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    if payload.fit not in ("cover", "contain"):
+        raise HTTPException(status_code=400, detail="fit must be 'cover' or 'contain'")
+    res = await db.app_images.update_one({"id": image_id, "is_deleted": False}, {"$set": {"fit": payload.fit}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Image not found")
+    doc = await db.app_images.find_one({"id": image_id}, {"_id": 0})
+    return _clean_app_image(doc)
+
+
+# ---------------- App (Mobile) Business Settings ----------------
+DEFAULT_BUSINESS = {
+    "phone_display": "(780) 718-5092",
+    "tollfree_display": "(833) TIDY-UPS",
+    "tollfree_sub": "+1 (833) 843-9877",
+    "address": "6510 Gateway Boulevard Suite 1020",
+    "city_line": "Edmonton, AB T6H 5Z5",
+    "website": "tidyupscleaning.com",
+    "hours": [
+        {"day": "Monday – Friday", "time": "8:00 AM – 6:00 PM"},
+        {"day": "Saturday", "time": "9:00 AM – 4:00 PM"},
+        {"day": "Sunday", "time": "Closed"},
+    ],
+    "logo_url": None,
+}
+
+
+def _tel_link(value):
+    digits = re.sub(r"\D", "", value or "")
+    if len(digits) == 10:
+        digits = "1" + digits
+    return f"tel:+{digits}" if digits else ""
+
+
+class HoursRow(BaseModel):
+    day: str
+    time: str
+
+
+class BusinessSettingsUpdate(BaseModel):
+    phone_display: Optional[str] = None
+    tollfree_display: Optional[str] = None
+    tollfree_sub: Optional[str] = None
+    address: Optional[str] = None
+    city_line: Optional[str] = None
+    website: Optional[str] = None
+    hours: Optional[List[HoursRow]] = None
+
+
+async def _get_business_merged():
+    doc = await db.app_settings.find_one({"key": "business"}, {"_id": 0}) or {}
+    return {**DEFAULT_BUSINESS, **{k: v for k, v in doc.items() if k != "key" and v is not None}}
+
+
+def _business_response(merged):
+    website = merged.get("website") or ""
+    website_url = website if website.startswith("http") else (f"https://{website}" if website else "")
+    return {
+        **merged,
+        "phone_tel": _tel_link(merged.get("phone_display")),
+        "tollfree_tel": _tel_link(merged.get("tollfree_sub") or merged.get("tollfree_display")),
+        "maps_url": "https://maps.google.com/?q=" + quote_plus(f"{merged.get('address', '')}, {merged.get('city_line', '')}"),
+        "website_url": website_url,
+    }
+
+
+@api_router.get("/app-settings")
+async def get_app_settings():
+    return _business_response(await _get_business_merged())
+
+
+@api_router.put("/app-settings")
+async def update_app_settings(payload: BusinessSettingsUpdate, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    updates = payload.model_dump(exclude_unset=True)
+    if updates:
+        await db.app_settings.update_one({"key": "business"}, {"$set": updates}, upsert=True)
+    return _business_response(await _get_business_merged())
+
+
+@api_router.post("/app-settings/logo")
+async def upload_app_logo(file: UploadFile = File(...), x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in file.filename else "png").lower()
+    content_type = MIME_TYPES.get(ext, file.content_type or "image/png")
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Logo too large (max 5MB)")
+    storage_path = f"{APP_NAME}/app/logo-{uuid.uuid4()}.{ext}"
+    try:
+        result = put_object(storage_path, data, content_type)
+    except Exception as e:
+        logger.error("Logo upload failed: %s", e)
+        raise HTTPException(status_code=502, detail="Logo upload failed. Please try again.")
+    url = f"/api/app-images/file/{result.get('path', storage_path)}"
+    await db.app_settings.update_one({"key": "business"}, {"$set": {"logo_url": url}}, upsert=True)
+    return _business_response(await _get_business_merged())
+
+
+@api_router.delete("/app-settings/logo")
+async def reset_app_logo(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    await db.app_settings.update_one({"key": "business"}, {"$set": {"logo_url": None}}, upsert=True)
+    return _business_response(await _get_business_merged())
 
 
 app.include_router(api_router)

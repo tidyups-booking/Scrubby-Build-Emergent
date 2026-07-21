@@ -5,8 +5,9 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
-import { STATS, TRUST_BADGES, WHY_US, TESTIMONIALS, CONTACT } from '../../constants/data';
+import { STATS, TRUST_BADGES, WHY_US, TESTIMONIALS } from '../../constants/data';
 import { fetchAppImages, resolveImageUrl } from '../../lib/api';
+import { useBusiness } from '../../lib/business';
 import { GradientButton, OutlineButton, SectionHeader, Card, Chip } from '../../components/ui';
 
 const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
@@ -14,6 +15,7 @@ const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
 export default function HomeScreen() {
   const router = useRouter();
   const [promos, setPromos] = useState([]);
+  const { business, logoUrl } = useBusiness();
 
   useFocusEffect(
     useCallback(() => {
@@ -29,7 +31,7 @@ export default function HomeScreen() {
         {/* Top bar */}
         <View style={styles.topBar}>
           <View style={styles.brandRow}>
-            <Image source={require('../../../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
+            <Image source={logoUrl ? { uri: logoUrl } : require('../../../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
             <View>
               <Text style={styles.brandName}>TIDYUPS</Text>
               <Text style={styles.brandSub}>Cleaning Service Inc</Text>
@@ -55,10 +57,10 @@ export default function HomeScreen() {
             style={{ marginBottom: 12 }}
           />
           <OutlineButton
-            title={`Call ${CONTACT.phoneDisplay}`}
+            title={`Call ${business.phoneDisplay}`}
             testID="home-cta-call"
             icon={<Ionicons name="call" size={18} color={COLORS.pink} />}
-            onPress={() => Linking.openURL(CONTACT.phoneTel)}
+            onPress={() => Linking.openURL(business.phoneTel)}
           />
         </View>
 
@@ -93,7 +95,7 @@ export default function HomeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
               {promos.map((img, idx) => (
                 <TouchableOpacity key={img.id} activeOpacity={0.9} onPress={() => router.push('/gallery')} testID={`promo-card-${idx}`}>
-                  <Image source={{ uri: resolveImageUrl(img.url) }} style={styles.promoImg} resizeMode="cover" />
+                  <Image source={{ uri: resolveImageUrl(img.url) }} style={styles.promoImg} resizeMode={img.fit === 'contain' ? 'contain' : 'cover'} />
                   {img.label ? (
                     <View style={styles.promoLabelWrap}>
                       <Text style={styles.promoLabel} numberOfLines={1}>

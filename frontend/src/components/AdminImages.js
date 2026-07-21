@@ -15,7 +15,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { fetchAppImages, uploadAppImage, deleteAppImage, reorderAppImages, resolveImageUrl } from '../lib/api';
+import { fetchAppImages, uploadAppImage, deleteAppImage, reorderAppImages, setImageFit, resolveImageUrl } from '../lib/api';
 import { GradientButton } from './ui';
 
 async function confirmAsync(title, message) {
@@ -89,6 +89,17 @@ export default function AdminImages({ password }) {
     }
   };
 
+  const toggleFit = async (img) => {
+    const fit = img.fit === 'contain' ? 'cover' : 'contain';
+    setImages((prev) => prev.map((i) => (i.id === img.id ? { ...i, fit } : i)));
+    try {
+      await setImageFit(img.id, fit, password);
+    } catch (e) {
+      setError('Could not change image fit — refreshing');
+      load();
+    }
+  };
+
   const move = async (index, dir) => {
     const target = index + dir;
     if (target < 0 || target >= images.length) return;
@@ -150,17 +161,28 @@ export default function AdminImages({ password }) {
               {error}
             </Text>
           ) : null}
-          <Text style={styles.hint}>Images appear in the Home carousel and the Gallery tab instantly.</Text>
+          <Text style={styles.hint}>
+            Images appear in the Home carousel and the Gallery tab instantly. Use the fit toggle on each image: "Fill
+            frame" crops to fill, "Show full" displays the whole graphic.
+          </Text>
         </View>
       }
       renderItem={({ item, index }) => (
         <View style={styles.row} testID={`admin-image-row-${index}`}>
-          <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.thumb} resizeMode="cover" />
+          <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.thumb} resizeMode={item.fit === 'contain' ? 'contain' : 'cover'} />
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel} numberOfLines={2}>
               {item.label || 'Untitled'}
             </Text>
             <Text style={styles.rowOrder}>Position {index + 1} of {images.length}</Text>
+            <TouchableOpacity style={styles.fitBtn} onPress={() => toggleFit(item)} testID={`admin-image-fit-${index}`}>
+              <MaterialCommunityIcons
+                name={item.fit === 'contain' ? 'fit-to-screen-outline' : 'arrow-expand-all'}
+                size={12}
+                color={COLORS.textSoft}
+              />
+              <Text style={styles.fitText}>{item.fit === 'contain' ? 'Show full' : 'Fill frame'}</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.actions}>
             <TouchableOpacity
@@ -241,6 +263,20 @@ const styles = StyleSheet.create({
   thumb: { width: 76, height: 76, borderRadius: 12, backgroundColor: COLORS.panelSoft },
   rowLabel: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
   rowOrder: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginTop: 3 },
+  fitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.panelSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginTop: 7,
+  },
+  fitText: { color: COLORS.textSoft, fontFamily: FONTS.bodyMedium, fontSize: 11 },
   actions: { gap: 6 },
   actionBtn: {
     width: 30,

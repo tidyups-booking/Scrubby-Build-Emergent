@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { COLORS } from '../constants/theme';
+import { BusinessProvider } from '../lib/business';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -25,17 +26,19 @@ export default function RootLayout() {
   if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.bg }} />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: COLORS.bg },
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="admin" options={{ presentation: 'modal' }} />
-      </Stack>
-    </View>
+    <BusinessProvider>
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: COLORS.bg },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="admin" options={{ presentation: 'modal' }} />
+        </Stack>
+      </View>
+    </BusinessProvider>
   );
 }

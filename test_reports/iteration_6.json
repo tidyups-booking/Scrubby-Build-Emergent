@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 6: Verified 3 NEW features end-to-end — (1) Editable business settings (/api/app-settings GET/PUT), (2) Logo upload/reset (/api/app-settings/logo POST/DELETE), (3) Per-image fit toggle (PATCH /api/app-images/{id}). Also verified PWA static assets. Backend: 19/19 new tests pass in test_app_settings_and_pwa.py — GET returns computed phone_tel/tollfree_tel/maps_url/website_url, PUT restores after edit with correct auth, PUT rejects missing/wrong password with 401, logo POST uploads to object storage + sets logo_url, DELETE resets to null, PATCH fit accepts 'cover'|'contain' only (400 on bogus, 401 on wrong pw), fit field default 'cover' in GET, manifest.json + sw.js + 4 icons + PWA meta tags in index.html all serve 200. Frontend (Playwright, mobile viewport): Home tab call button shows 'Call (780) 718-5092' (home-cta-call), Contact tab reflects phone/toll-free/address/website/hours. Full admin round-trip works — Contact→Staff Login→admin-tab-business→edit phone→admin-biz-save→success→Home & Contact tabs update to '(780) 555-1234' → restored to '(780) 718-5092'. Admin Images tab fit toggle: Fill frame ⇄ Show full, persists across reload, restored to Fill frame. All 5 app-images have fit='cover', all business fields match originals, logo_url=null.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "seed_site_images", "issue": "seed_site_images() ensures 'why' auto-restores when all why docs are soft-deleted, but 'hero' does NOT have equivalent auto-recovery. On startup, if hero is soft-deleted (e.g., after failed replace-test cleanup), API returns hero:null indefinitely. Recommend adding same ensure-hero-active branch for symmetry."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_app_settings_and_pwa.py",
+    "/app/test_reports/pytest/pytest_iter6.xml"
+  ],
+  "action_items": [
+    "PRE-EXISTING (not iter 6 scope): test_site_images.py TestHeroReplace + TestWhyReplace fail because they read DB_NAME/MONGO_URL from os.environ without loading /app/backend/.env. When run via pytest without env vars, they fall back to 'test_database' DB, so un-soft-delete restore writes to wrong DB and leaves hero/why permanently soft-deleted in real DB. Fix: add pytest fixture that loads /app/backend/.env before any test that uses direct pymongo. I already ran pymongo directly to restore the DB after finding hero=null and why=null (both had been left soft-deleted by prior test runs).",
+    "Consider mirroring the 'why' ensure-branch of seed_site_images() for 'hero' so that a soft-deleted hero self-heals on backend restart (currently only 'why' does)."
+  ],
+  "critical_code_review_comments": [
+    "server.py continues to grow (~660 lines) mixing storage, models, routes, sheets OAuth, SMS, site-images, app-images, app-settings, logo — should be split into modules (routes/site_images.py, routes/app_images.py, routes/app_settings.py, storage.py, sheets.py) before adding more surface area.",
+    "put_object / get_object are synchronous requests calls inside async endpoints — blocks the event loop on large uploads. Consider fastapi.concurrency.run_in_threadpool or an async HTTP client (httpx).",
+    "seed_site_images() auto-restores 'why' but not 'hero' — inconsistent recovery behavior. Either add hero ensure-branch or remove why ensure-branch for consistency.",
+    "DELETE /api/site-images/{id} and DELETE /api/app-images/{id} only soft-delete; underlying blobs remain in Emergent object storage. Add periodic cleanup or hard-delete via storage API.",
+    "/api/app-settings/logo returns a URL of form '/api/app-images/file/…' — the served endpoint is shared with app-images but the object is stored under 'app/logo-<uuid>.png'. Works, but naming coupling makes future refactors risky. Consider a dedicated /api/app-settings/logo/file/{path} route.",
+    "Test file /app/backend/tests/test_site_images.py hard-codes DB_NAME fallback to 'test_database' — silently writes to wrong DB when env not loaded, masking real un-soft-delete failures. Should use pytest fixture to load .env or fail fast if env missing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_app_settings_and_pwa.py"
+  ],
+  "success_rate": {"backend": "100% (19/19 new tests; 44/48 overall — the 4 pre-existing failures are DB_NAME env-loading issue in test_site_images.py, unrelated to iter 6 features)", "frontend": "100%"},
+  "test_credentials": "Admin password: tidyups2026 (X-Admin-Password header) — verified working end-to-end.",
+  "seed_data_creation": "No permanent test data added to app_images/app_settings. Restored: phone_display=(780) 718-5092, all business fields to originals, logo_url=null, all 5 app_images fit=cover. ALSO manually restored hero (Our Fleet) + why (Why Tidyups) via direct pymongo un-soft-delete because prior iteration/testing runs had left them soft-deleted and the seed function does not self-heal hero. Final site_images state: 1 hero + 1 why + 4 gallery (verified via GET /api/site-images).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter 6 features (app-settings CRUD, logo upload/reset, app-image fit toggle, PWA) all pass. Test file: /app/backend/tests/test_app_settings_and_pwa.py. Pre-existing failing tests in /app/backend/tests/test_site_images.py::TestHeroReplace and TestWhyReplace are due to DB_NAME env not loaded when running pytest — the tests directly instantiate pymongo with os.environ.get('DB_NAME', 'test_database') and write restore updates to 'test_database' instead of 'tidyups_database'. To run those safely, prefix with `DB_NAME=tidyups_database MONGO_URL=mongodb://localhost:27017 pytest ...` OR add a conftest.py that dotenv-loads /app/backend/.env. Also aware: if a hero replace test soft-deletes original hero and un-soft-delete write goes to wrong DB, the real DB is left with hero=null (server does not auto-heal hero on restart — only why). Use pymongo un-soft-delete of id 56816e06-34b8-49ab-a79a-03348cd8a313 (Our Fleet hero) and 4333db0f-c36f-4b4a-b08a-685524172d0f (Why Tidyups) to restore.",
+  "rca of the issue": "N/A — all new iter 6 features verified working end-to-end. Only pre-existing test infra bug flagged: test_site_images.py directly uses pymongo with unloaded env vars, writing DB restore updates to wrong DB and permanently soft-deleting real hero/why. Symptomatic bug: seed_site_images self-heals 'why' but not 'hero'."
+}

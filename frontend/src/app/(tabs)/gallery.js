@@ -71,7 +71,7 @@ export default function GalleryScreen() {
           }
           renderItem={({ item, index }) => (
             <TouchableOpacity activeOpacity={0.9} onPress={() => setViewer(item)} testID={`gallery-card-${index}`}>
-              <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.image} resizeMode="cover" />
+              <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.image} resizeMode={item.fit === 'contain' ? 'contain' : 'cover'} />
               {item.label ? (
                 <View style={styles.labelWrap}>
                   <Text style={styles.label} numberOfLines={1}>
