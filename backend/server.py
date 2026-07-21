@@ -648,6 +648,117 @@ async def reset_app_logo(x_admin_password: Optional[str] = Header(default=None))
     return _business_response(await _get_business_merged())
 
 
+# ---------------- Cleaner Location Tracking ----------------
+DEFAULT_CLEANER_PIN = "1234"
+
+
+async def _get_cleaner_pin():
+    doc = await db.app_settings.find_one({"key": "staff"})
+    return (doc or {}).get("cleaner_pin") or DEFAULT_CLEANER_PIN
+
+
+def _check_pin(pin: Optional[str], expected: str):
+    if not pin or pin != expected:
+        raise HTTPException(status_code=401, detail="Invalid cleaner PIN")
+
+
+class PinUpdate(BaseModel):
+    pin: str
+
+
+@api_router.get("/staff/pin")
+async def get_staff_pin(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    return {"pin": await _get_cleaner_pin()}
+
+
+@api_router.put("/staff/pin")
+async def update_staff_pin(payload: PinUpdate, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    pin = payload.pin.strip()
+    if not re.fullmatch(r"\d{4,8}", pin):
+        raise HTTPException(status_code=400, detail="PIN must be 4-8 digits")
+    await db.app_settings.update_one({"key": "staff"}, {"$set": {"cleaner_pin": pin}}, upsert=True)
+    return {"pin": pin}
+
+
+class CleanerCheckin(BaseModel):
+    name: str
+    pin: str
+
+
+class CleanerLocationPing(BaseModel):
+    cleaner_id: str
+    pin: str
+    lat: float
+    lng: float
+
+
+class CleanerStopPayload(BaseModel):
+    cleaner_id: str
+    pin: str
+
+
+def _clean_cleaner(doc):
+    return {"id": doc["id"], "name": doc["name"], "sharing": doc.get("sharing", False),
+            "lat": doc.get("lat"), "lng": doc.get("lng"), "last_seen": doc.get("last_seen")}
+
+
+@api_router.post("/cleaners/checkin")
+async def cleaner_checkin(payload: CleanerCheckin):
+    _check_pin(payload.pin, await _get_cleaner_pin())
+    name = " ".join(payload.name.split()).strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    name_key = name.lower()
+    doc = await db.cleaners.find_one({"name_key": name_key})
+    if not doc:
+        doc = {
+            "id": str(uuid.uuid4()), "name": name, "name_key": name_key,
+            "sharing": False, "lat": None, "lng": None, "history": [],
+            "last_seen": None, "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.cleaners.insert_one(doc)
+    return {"cleaner_id": doc["id"], "name": doc["name"]}
+
+
+@api_router.post("/cleaners/location")
+async def cleaner_location(payload: CleanerLocationPing):
+    _check_pin(payload.pin, await _get_cleaner_pin())
+    now = datetime.now(timezone.utc).isoformat()
+    res = await db.cleaners.update_one(
+        {"id": payload.cleaner_id},
+        {"$set": {"lat": payload.lat, "lng": payload.lng, "sharing": True, "last_seen": now},
+         "$push": {"history": {"$each": [{"lat": payload.lat, "lng": payload.lng, "at": now}], "$slice": -20}}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Cleaner not found — please check in again")
+    return {"ok": True, "at": now}
+
+
+@api_router.post("/cleaners/stop")
+async def cleaner_stop(payload: CleanerStopPayload):
+    _check_pin(payload.pin, await _get_cleaner_pin())
+    await db.cleaners.update_one({"id": payload.cleaner_id}, {"$set": {"sharing": False}})
+    return {"ok": True}
+
+
+@api_router.get("/cleaners")
+async def list_cleaners(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    docs = await db.cleaners.find({}).sort("last_seen", -1).to_list(200)
+    return [_clean_cleaner(d) for d in docs]
+
+
+@api_router.delete("/cleaners/{cleaner_id}")
+async def delete_cleaner(cleaner_id: str, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    res = await db.cleaners.delete_one({"id": cleaner_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    return {"ok": True}
+
+
 app.include_router(api_router)
 
 app.add_middleware(

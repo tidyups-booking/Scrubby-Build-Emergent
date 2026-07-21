@@ -80,6 +80,10 @@ export default function ContactScreen() {
           <Ionicons name="lock-closed" size={13} color={COLORS.textMuted} />
           <Text style={styles.staffLinkText}>Staff Login</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.staffLink, { marginTop: 0 }]} onPress={() => router.push('/cleaner')} testID="cleaner-checkin-link">
+          <Ionicons name="navigate" size={13} color={COLORS.textMuted} />
+          <Text style={styles.staffLinkText}>Cleaner Check-In</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

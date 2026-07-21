@@ -19,6 +19,8 @@ import { adminLogin, fetchQuotes, formatDate } from '../lib/api';
 import { GradientButton, Chip } from '../components/ui';
 import AdminImages from '../components/AdminImages';
 import AdminBusiness from '../components/AdminBusiness';
+import AdminTeam from '../components/AdminTeam';
+import { requestLeadNotifPermission } from '../lib/leadAlerts';
 
 const PW_KEY = 'tidyups_admin_pw';
 const BOOK_AGAIN_TAG = '[Book Again]';
@@ -127,6 +129,10 @@ export default function AdminScreen() {
     })();
   }, [loadLeads]);
 
+  useEffect(() => {
+    if (storedPw) requestLeadNotifPermission();
+  }, [storedPw]);
+
   const onLogin = async () => {
     if (!password.trim()) {
       setError('Enter the admin password');
@@ -215,36 +221,30 @@ export default function AdminScreen() {
       </View>
 
       <View style={styles.segmentRow}>
-        <TouchableOpacity
-          style={[styles.segment, tab === 'leads' && styles.segmentActive]}
-          onPress={() => setTab('leads')}
-          testID="admin-tab-leads"
-        >
-          <Ionicons name="people" size={15} color={tab === 'leads' ? '#fff' : COLORS.textMuted} />
-          <Text style={[styles.segmentText, tab === 'leads' && styles.segmentTextActive]}>Leads</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segment, tab === 'images' && styles.segmentActive]}
-          onPress={() => setTab('images')}
-          testID="admin-tab-images"
-        >
-          <Ionicons name="images" size={15} color={tab === 'images' ? '#fff' : COLORS.textMuted} />
-          <Text style={[styles.segmentText, tab === 'images' && styles.segmentTextActive]}>Images</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segment, tab === 'business' && styles.segmentActive]}
-          onPress={() => setTab('business')}
-          testID="admin-tab-business"
-        >
-          <Ionicons name="storefront" size={15} color={tab === 'business' ? '#fff' : COLORS.textMuted} />
-          <Text style={[styles.segmentText, tab === 'business' && styles.segmentTextActive]}>Business</Text>
-        </TouchableOpacity>
+        {[
+          { key: 'leads', icon: 'people', label: 'Leads' },
+          { key: 'images', icon: 'images', label: 'Images' },
+          { key: 'business', icon: 'storefront', label: 'Business' },
+          { key: 'team', icon: 'navigate', label: 'Team' },
+        ].map((s) => (
+          <TouchableOpacity
+            key={s.key}
+            style={[styles.segment, tab === s.key && styles.segmentActive]}
+            onPress={() => setTab(s.key)}
+            testID={`admin-tab-${s.key}`}
+          >
+            <Ionicons name={s.icon} size={14} color={tab === s.key ? '#fff' : COLORS.textMuted} />
+            <Text style={[styles.segmentText, tab === s.key && styles.segmentTextActive]}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {tab === 'images' ? (
         <AdminImages password={storedPw} />
       ) : tab === 'business' ? (
         <AdminBusiness password={storedPw} />
+      ) : tab === 'team' ? (
+        <AdminTeam password={storedPw} />
       ) : (
         <>
           {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
+    gap: 5,
     paddingVertical: 11,
     borderRadius: 13,
     backgroundColor: COLORS.panel,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   segmentActive: { backgroundColor: COLORS.violet, borderColor: COLORS.violet },
-  segmentText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+  segmentText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 12.5 },
   segmentTextActive: { color: '#fff' },
   iconBtn: {
     width: 40,

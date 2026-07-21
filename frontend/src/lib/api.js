@@ -162,6 +162,80 @@ export async function resetLogo(password) {
   return res.json();
 }
 
+export async function checkinCleaner(name, pin) {
+  const res = await fetch(`${IMAGES_API}/cleaners/checkin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, pin }),
+  });
+  if (res.status === 401) throw new Error('Wrong PIN — ask the office for the current cleaner PIN.');
+  if (!res.ok) throw new Error('Check-in failed — please try again.');
+  return res.json();
+}
+
+export async function sendCleanerLocation(cleanerId, pin, lat, lng) {
+  const res = await fetch(`${IMAGES_API}/cleaners/location`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cleaner_id: cleanerId, pin, lat, lng }),
+  });
+  if (res.status === 401) {
+    const e = new Error('PIN changed — please check in again.');
+    e.code = 401;
+    throw e;
+  }
+  if (!res.ok) throw new Error('Location update failed');
+  return res.json();
+}
+
+export async function stopCleanerSharing(cleanerId, pin) {
+  const res = await fetch(`${IMAGES_API}/cleaners/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cleaner_id: cleanerId, pin }),
+  });
+  return res.ok;
+}
+
+export async function fetchCleaners(password) {
+  const res = await fetch(`${IMAGES_API}/cleaners`, { headers: { 'X-Admin-Password': password } });
+  if (res.status === 401) {
+    const e = new Error('unauthorized');
+    e.code = 401;
+    throw e;
+  }
+  if (!res.ok) throw new Error('Failed to load team');
+  return res.json();
+}
+
+export async function deleteCleaner(cleanerId, password) {
+  const res = await fetch(`${IMAGES_API}/cleaners/${cleanerId}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!res.ok) throw new Error('Delete failed');
+  return res.json();
+}
+
+export async function fetchStaffPin(password) {
+  const res = await fetch(`${IMAGES_API}/staff/pin`, { headers: { 'X-Admin-Password': password } });
+  if (!res.ok) throw new Error('Failed to load PIN');
+  return res.json();
+}
+
+export async function updateStaffPin(pin, password) {
+  const res = await fetch(`${IMAGES_API}/staff/pin`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text.includes('4-8') ? 'PIN must be 4-8 digits' : 'PIN update failed');
+  }
+  return res.json();
+}
+
 export function formatDate(iso) {
   try {
     const d = new Date(iso);

@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 7: Verified cleaner location tracking + admin Team tab + lead-alerts polling end-to-end. Backend: 20/20 tests pass (sequential) in test_cleaner_tracking.py — /api/staff/pin GET/PUT (401 no admin, 400 non-digits/too-short/too-long, PIN change invalidates old PIN on checkin), /api/cleaners/checkin (200 with pin=1234, 401 on wrong pin, 400 on empty name, dedupe returns same cleaner_id for same name case-insensitively), /api/cleaners/location (200 sets sharing=true + persists lat/lng/last_seen; 401 wrong pin; 404 unknown cleaner), /api/cleaners/stop (sets sharing=false), GET /api/cleaners (401 without admin, returns id/name/sharing/lat/lng/last_seen), DELETE /api/cleaners/{id} (401 without admin, 200 ok, 404 unknown). Frontend (Playwright, 390px mobile viewport): Contact→cleaner-checkin-link→cleaner modal→wrong PIN shows 'Wrong PIN' via cleaner-error→correct pin '1234' + name 'QA Cleaner'→cleaner-status='Hi, QA!'→cleaner-start-btn (with grant_permissions(['geolocation']) + set_geolocation(53.5461,-113.4938))→cleaner-status='You're live!'→GET /api/cleaners confirms sharing=true at Edmonton coords→cleaner-stop-btn→backend sharing=false→cleaner-signout returns to check-in form. Admin Team tab: after localStorage tidyups_admin_pw seed + /admin route, all 4 tabs (admin-tab-leads/images/business/team) render at x=[20,370] on 390px viewport (no wrap, fits comfortably). PIN card shows admin-pin-input='1234' + admin-pin-save button. Cleaner rows admin-cleaner-row-0 show name + 'Active now — sharing live location' text. Track button admin-cleaner-track-0 enabled when coords present. Delete button with window.confirm removed row (3→2 rows). Regression: Leads/Images/Business tabs still render without errors. Lead alerts: with tidyups_admin_pw='tidyups2026' preseeded, page load fires GET https://bookmycleaning.xyz/api/quotes within ~4s (3 polls captured during test). Cleanup: All TEST_/QA cleaners deleted, PIN restored to '1234'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/cleaners/checkin", "issue": "No length/format validation on 'name' beyond non-empty — accepts arbitrary long strings and special chars. Consider max_length ~80 and stripping HTML-ish characters to prevent abuse."},
+      {"endpoint": "/api/cleaners/location", "issue": "Accepts any lat/lng float (e.g., 999, -999) — no bounds check to -90..90 / -180..180. Bogus GPS data would silently pollute history + map link."},
+      {"endpoint": "/api/cleaners", "issue": "GET /cleaners has no pagination (to_list(200) hard cap). For scale, offer ?limit + ?since. Also returns cleaners that have never shared (sharing=false, no last_seen) — admin list could hide these with ?active_only=true."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Team tab (390px viewport)", "issues": ["Tabs sit at x=[20,370] with only 20px margin — visually fine but no room for a 5th segment. If future iterations add another tab, they will wrap or overflow."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cleaner_tracking.py",
+    "/app/test_reports/pytest/pytest_iter7_cleaner.xml"
+  ],
+  "action_items": [
+    "OPTIONAL hardening: Add lat/lng bounds validation on POST /api/cleaners/location (Pydantic Field(ge=-90, le=90) etc.)",
+    "OPTIONAL hardening: Cap 'name' length on POST /api/cleaners/checkin (e.g., max_length=80) and reject control characters.",
+    "TEST INFRA (not a product bug): test_cleaner_tracking.py has 2 tests (test_location_unknown_cleaner, test_stop_sets_sharing_false) that flake under pytest-xdist because TestStaffPin::test_put_pin_updates_and_old_pin_rejected_then_restore mutates the shared PIN mid-run. Sequential run (-n 0) is 20/20 pass. Options: (a) mark PIN-mutating test with @pytest.mark.serial and configure xdist to isolate, (b) refactor PIN test to use a per-test locked context, or (c) fetch current PIN dynamically inside each location test.",
+    "CODE REVIEW (carry-over from iter 6): server.py is now ~787 lines mixing cleaners, images, settings, sheets, sms — split into modules routes/cleaners.py, routes/app_images.py, routes/site_images.py, routes/app_settings.py, sms.py, sheets.py before adding more surface area."
+  ],
+  "critical_code_review_comments": [
+    "server.py grew to 787 lines with a new Cleaner Tracking section — high time to split into route modules (see action item).",
+    "expo-notifications on web: leadAlerts.js gracefully guards with Platform.OS but the notification handler config at import time still triggers a warning log ('Listening to push token changes is not yet fully supported on web') twice. Consider moving Notifications.setNotificationHandler behind a lazy import to reduce noise.",
+    "cleaner.js sendPing swallows all non-401 errors silently (no error surface, no retry). If backend goes down mid-shift, cleaner UI stays on 'You're live!' indefinitely with no signal — consider surfacing a stale-ping warning (e.g., if lastSent > 90s ago show a yellow toast).",
+    "AdminTeam.js polls /api/cleaners every 30s (setInterval) but never pauses when tab is hidden — wastes bandwidth. Consider Page Visibility API.",
+    "leadAlerts.js polls every 60s indefinitely and fires window.Notification on web without any user setting to disable — consider adding a per-device toggle stored in AsyncStorage.",
+    "Track link opens external Google Maps rather than embedding a map view — acceptable for MVP but a future 'Team' improvement would be to show all live cleaners on one map. Also, Linking.openURL of the maps URL from within a mobile-web wrapper opens in a new tab (window.open) which is fine but may be blocked by strict popup blockers.",
+    "Delete confirmation on web uses window.confirm (native browser dialog) — not skinnable and looks out of place vs the app's dark theme. Consider a themed modal.",
+    "cleaner.js secureTextEntry=true on PIN input hides digits from a colleague looking over shoulder — but keyboardType='number-pad' with secureTextEntry combined works oddly on web (still shows text field, not password dots on some browsers). Acceptable but confirm on target devices.",
+    "PIN update flow in AdminTeam.js: after PUT succeeds, only shows notice — does NOT force-invalidate any currently-sharing cleaners' local profiles. They keep pinging until backend 401s, then cleaner.js shows 'PIN was changed'. Works, but a small backend push (websocket/SSE) would be cleaner."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cleaner_tracking.py"
+  ],
+  "success_rate": {"backend": "100% (20/20 sequential; 18/20 under xdist due to a race condition in the PIN-mutation test — see action items)", "frontend": "100%"},
+  "test_credentials": "Admin: tidyups2026 (X-Admin-Password). Cleaner PIN: 1234. Both verified working. Ref /app/memory/test_credentials.md.",
+  "seed_data_creation": "During test: created cleaners 'TEST_Alice', 'TEST_Dupe', 'TEST_Locator', 'TEST_Listing', 'TEST_Delete', 'TEST_NewPin', 'TEST_LiveCleaner', 'TEST_IdleCleaner', 'QA Cleaner'. All deleted at end via DELETE /api/cleaners/{id}. Staff PIN briefly changed to '5678' then restored to '1234'. Verified final state: GET /api/cleaners returns [] and GET /api/staff/pin returns {pin:'1234'}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 7 cleaner-tracking + Team tab + lead-alerts polling all green. Backend test file: /app/backend/tests/test_cleaner_tracking.py — MUST be run with `-n 0` (sequential) because TestStaffPin::test_put_pin_updates_and_old_pin_rejected_then_restore mutates the shared cleaner PIN (5678) mid-run, racing with TestCleanerLocation tests that use default '1234'. Under default xdist configuration (2 workers, LoadScopeScheduling) 2 tests fail (test_location_unknown_cleaner, test_stop_sets_sharing_false). Fix approaches noted in action_items. Playwright: expo-location on web uses navigator.geolocation — call context.grant_permissions(['geolocation'], origin=BASE) + context.set_geolocation({lat,lng}) BEFORE page.goto for the flow to succeed. Lead-alerts poll intercept: register `page.on('request', ...)` and match 'bookmycleaning.xyz/api/quotes' before page.goto, and seed localStorage tidyups_admin_pw via add_init_script — the hook fires an initial tick immediately on mount (within ~2-4s of page load). Preview URL is stable at https://expo-book-cleaning.preview.emergentagent.com/. All cleaner+staff endpoints are LOCAL backend, admin/quotes go to PRODUCTION bookmycleaning.xyz — never POST a quote in tests.",
+  "rca of the issue": "N/A — all iter 7 features (backend + frontend) verified working end-to-end. Only issues flagged: (1) test infra flake under pytest-xdist due to shared-state PIN mutation, (2) missing input bounds validation on cleaner location/name (defense-in-depth suggestions, not bugs)."
+}

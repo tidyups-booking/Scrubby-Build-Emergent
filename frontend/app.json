@@ -32,6 +32,18 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Tidyups uses your location to share your live position with dispatch while you head to a job site."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#8B2FC9"
+        }
       ]
     ]
   }
