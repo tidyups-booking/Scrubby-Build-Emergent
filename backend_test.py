@@ -11,7 +11,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://36839c5c-380c-4689-98ab-002695319f37.preview.emergentagent.com/api"
+BASE_URL = "https://expo-book-cleaning.preview.emergentagent.com/api"
 ADMIN_PASSWORD = "tidyups2026"
 ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
 WRONG_PASSWORD_HEADERS = {"X-Admin-Password": "wrongpassword"}
