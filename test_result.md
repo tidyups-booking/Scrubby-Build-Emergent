@@ -128,21 +128,24 @@ backend:
 frontend:
   - task: "Mobile app UI (Home/Services/Quote/Gallery/Contact tabs + /admin with Leads and Images manager)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Expo SDK 57 web preview on port 3000. Verified via screenshots: home renders, gallery shows 5 images, admin login (tidyups2026) works against production, Images tab lists 5 images with reorder/delete/upload UI. NOTE: quote submit POSTs to PRODUCTION and sends a real SMS to the owner - do NOT submit quotes in tests without explicit user approval."
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE MOBILE APP TESTING COMPLETED - ALL 6 SCENARIOS PASSED. Tested on mobile viewport 390x844. SCENARIO 1 (Home): Hero title, CTA buttons, stats row, and all 5 promo cards visible and rendering correctly. SCENARIO 2 (Services): All 9 service cards visible; clicking service-card-2 (Deep Cleaning) correctly navigated to Quote screen with Deep Cleaning preselected. SCENARIO 3 (Quote Form): Validation error shown correctly for empty fields; successfully filled form with TEST data (name: TEST Automated - Please Ignore, phone: 0000000000, service: Other/Not Sure, property: House, 2 bed, 1 bath, address: TEST street, T0T 0T0, message: Automated TEST submission); ONE production quote submitted successfully to bookmycleaning.xyz; success screen shown; returned to Home after clicking Done. SCENARIO 4 (Gallery): All 5 gallery cards visible; fullscreen viewer opened and closed correctly. SCENARIO 5 (Contact): All contact rows visible (phone, toll-free, address, website); staff login link successfully opened Admin screen. SCENARIO 6 (Admin): Wrong password error shown correctly; correct password (tidyups2026) logged in successfully; lead count: 3 quote requests; TEST quote found at top of leads list (proves end-to-end integration with production); Images tab: 5 initial images; UPLOAD test: successfully uploaded test image (5→6 images); REORDER test: successfully reordered images (first image changed from Move In/Move Out Cleaning to Deep Cleaning Specialists) and restored original order; DELETE test: successfully deleted test image (6→5 images, restored to original count); switched back to Leads tab; logged out successfully. ✅ End-to-end integration verified. ✅ Image management fully functional. ✅ All UI elements render correctly. ✅ Navigation works correctly. ✅ Form validation works. ✅ Admin authentication works. ✅ No console errors or network errors. Image list successfully restored to original 5 images in original order."
 
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
-  run_ui: false
+  test_sequence: 4
+  run_ui: true
 
 test_plan:
   current_focus: []
@@ -166,3 +169,11 @@ agent_communication:
       POST /api/app-images/reorder (reorders and restores successfully), DELETE /api/app-images/{id} (deletes correctly, returns 401/404 appropriately).
       POST /api/quotes sanity check passed (no SMS sent locally as expected). Image list restored to original 5 images.
       NO ISSUES FOUND. Backend is production-ready.
+  - agent: "main"
+    message: >
+      User approved FULL frontend testing INCLUDING exactly ONE clearly-labeled test quote submission to production
+      bookmycleaning.xyz (sends one real SMS to the owner - allowed once, label it TEST). Admin password tidyups2026.
+      Frontend testing must restore the app-images list to the original 5 images and original order afterwards.
+  - agent: "testing"
+    message: >
+      ✅ ALL FRONTEND TESTS PASSED (6/6 scenarios). Mobile app fully functional on 390x844 viewport. All tabs (Home, Services, Quote, Gallery, Contact) working correctly. Quote form validation working. ONE test quote successfully submitted to production (name: TEST Automated - Please Ignore) and verified in admin leads list at top position - end-to-end integration confirmed. Admin login/logout working. Images manager fully functional: upload, reorder, delete all working correctly. Image list restored to original 5 images in original order. No console errors or network errors. App is production-ready.
