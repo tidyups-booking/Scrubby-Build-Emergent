@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'tidyups_last_quote';
 
+export const BOOK_AGAIN_TAG = '[Book Again]';
+
 export async function saveLastQuote(form) {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify({ ...form, saved_at: new Date().toISOString() }));

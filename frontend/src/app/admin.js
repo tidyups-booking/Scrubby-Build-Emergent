@@ -21,11 +21,14 @@ import AdminImages from '../components/AdminImages';
 import AdminBusiness from '../components/AdminBusiness';
 
 const PW_KEY = 'tidyups_admin_pw';
+const BOOK_AGAIN_TAG = '[Book Again]';
 
 function LeadCard({ item }) {
   const address =
     [item.street_address, item.city, item.province, item.postal_code].filter(Boolean).join(', ') || item.address;
   const telHref = `tel:${(item.phone || '').replace(/[^+\d]/g, '')}`;
+  const isReturning = (item.message || '').includes(BOOK_AGAIN_TAG);
+  const displayMessage = (item.message || '').replace(BOOK_AGAIN_TAG, '').trim();
 
   return (
     <View style={styles.leadCard} testID="admin-lead-card">
@@ -35,6 +38,12 @@ function LeadCard({ item }) {
       </View>
 
       <View style={styles.chipRow}>
+        {isReturning ? (
+          <View style={styles.returningChip} testID="lead-returning-chip">
+            <Ionicons name="repeat" size={12} color={COLORS.gold} />
+            <Text style={styles.returningChipText}>Returning customer</Text>
+          </View>
+        ) : null}
         <Chip label={item.service_type} />
         {item.property_type ? <Chip label={item.property_type} /> : null}
         {item.bedrooms ? <Chip label={`${item.bedrooms} bed`} /> : null}
@@ -67,7 +76,7 @@ function LeadCard({ item }) {
         </View>
       ) : null}
 
-      {item.message ? <Text style={styles.leadMessage}>"{item.message}"</Text> : null}
+      {displayMessage ? <Text style={styles.leadMessage}>"{displayMessage}"</Text> : null}
     </View>
   );
 }
@@ -357,6 +366,18 @@ const styles = StyleSheet.create({
   leadName: { color: COLORS.text, fontFamily: FONTS.heading, fontSize: 17, flex: 1, marginRight: 8 },
   leadDate: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 11.5, marginTop: 3 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  returningChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,138,61,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,138,61,0.4)',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  returningChipText: { color: COLORS.gold, fontFamily: FONTS.bodySemiBold, fontSize: 12.5 },
   leadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   leadRowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13.5, flex: 1 },
   leadMessage: {

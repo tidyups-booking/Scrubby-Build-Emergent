@@ -20,7 +20,7 @@ import {
   PROVINCES,
 } from '../../constants/data';
 import { submitQuote } from '../../lib/api';
-import { saveLastQuote, getLastQuote } from '../../lib/lastQuote';
+import { saveLastQuote, getLastQuote, BOOK_AGAIN_TAG } from '../../lib/lastQuote';
 import { GradientButton, OutlineButton, SectionHeader } from '../../components/ui';
 import SelectField from '../../components/SelectField';
 
@@ -113,6 +113,9 @@ export default function QuoteScreen() {
         payload.address = [payload.street_address, payload.city, payload.province, payload.postal_code]
           .filter(Boolean)
           .join(', ');
+      }
+      if (prefilled) {
+        payload.message = [BOOK_AGAIN_TAG, payload.message].filter(Boolean).join(' ');
       }
       await submitQuote(payload);
       saveLastQuote(form);
