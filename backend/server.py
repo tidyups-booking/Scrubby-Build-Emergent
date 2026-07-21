@@ -690,8 +690,8 @@ class CleanerCheckin(BaseModel):
 class CleanerLocationPing(BaseModel):
     cleaner_id: str
     pin: str
-    lat: float
-    lng: float
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
 
 
 class CleanerStopPayload(BaseModel):
@@ -710,6 +710,8 @@ async def cleaner_checkin(payload: CleanerCheckin):
     name = " ".join(payload.name.split()).strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name is required")
+    if len(name) > 80:
+        raise HTTPException(status_code=400, detail="Name too long (max 80 characters)")
     name_key = name.lower()
     doc = await db.cleaners.find_one({"name_key": name_key})
     if not doc:

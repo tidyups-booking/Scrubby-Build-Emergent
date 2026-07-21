@@ -39,10 +39,15 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
 - `/api/app-settings` GET (public business details + computed phone_tel/tollfree_tel/maps_url/website_url),
   PUT (admin, partial update of phone/tollfree/address/city_line/website/hours), `/api/app-settings/logo` POST (multipart upload,
   sets logo_url) / DELETE (reset to default logo). Stored in `app_settings` collection (single doc key="business").
+- Cleaner tracking: `/api/staff/pin` GET/PUT (admin, 4-8 digit PIN, stored app_settings key="staff", default 1234),
+  `/api/cleaners/checkin` POST {name,pin} (dedupe by lowercased name, name max 80), `/api/cleaners/location` POST
+  {cleaner_id,pin,lat,lng} (bounds-validated, keeps last 20 history points, sets sharing=true+last_seen),
+  `/api/cleaners/stop` POST, `/api/cleaners` GET (admin), `/api/cleaners/{id}` DELETE (admin). Collection: `cleaners`.
 - Seeds 5 images on startup if `app_images` empty (2 cropped flyers stored in object storage + 3 customer-asset URLs).
 - `seed_site_images` self-heals BOTH `hero` and `why` slots on startup if soft-deleted.
 - backend/.env: MONGO_URL, DB_NAME=tidyups_database, ADMIN_PASSWORD=tidyups2026, EMERGENT_LLM_KEY (storage), CORS *.
 - backend/tests/conftest.py loads backend/.env so pytest never falls back to wrong DB.
+- NOTE: backend/tests/test_cleaner_tracking.py must run sequentially (`-n 0`) — PIN-mutation test races under xdist.
 
 ## Critical notes
 - DO NOT modify the production website/backend — it belongs to the original task.
@@ -55,19 +60,32 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   **NO HOT RELOAD on frontend** — after any frontend code change run `sudo supervisorctl restart frontend` and wait ~25s.
 
 ## Backlog
-- P2: Native builds (EAS) + store submission (needs Apple/Google accounts; icon + privacy policy ready).
-- P2: Push notifications for new leads.
-- P3 (code health, from testing agent review): split server.py into modules; wrap put_object/get_object in
-  run_in_threadpool; hard-delete orphaned storage blobs.
+- P1: Native builds via EAS — CONFIG READY (eas.json, plugins, guide at /app/STORE_SUBMISSION_GUIDE.md). User has
+  both Apple + Google dev accounts; they run `eas build`/`eas submit` from their machine (needs their Expo login).
+- P2: True push notifications + background location for cleaners — bundle with native builds (foreground
+  polling/sharing already works everywhere).
+- P3 (code health, from testing agent review): split server.py (~790 lines) into modules; wrap put_object/get_object
+  in run_in_threadpool; hard-delete orphaned storage blobs; themed confirm dialogs instead of window.confirm;
+  stale-ping warning on cleaner screen; pause AdminTeam polling when tab hidden; all-cleaners-on-one-map view.
 
 ## Done (June 21, 2026 session)
 - Admin "Business" tab: editable logo (upload/reset), phone, toll-free, address, website, hours — live app-wide.
 - Per-image fit toggle (Fill frame / Show full) in admin Images; respected by Home promos + Gallery.
 - PWA: manifest, service worker, icons, meta tags (installable web app).
 - Fixes: hero slot self-heal on startup; tests conftest.py env loading; CI=1 Metro workaround for low inotify limit.
-- All tested: iteration_6.json — backend 19/19, frontend 100%.
-- **Book Again**: after a successful quote submit, the form is saved to AsyncStorage ('tidyups_last_quote',
-  src/lib/lastQuote.js). Home shows a "Welcome back, {name}" card (book-again-card) when saved data exists →
-  taps to /quote?bookAgain=<ts> which prefills all fields (preferred_date cleared as stale) + shows banner
-  (book-again-banner). User still confirms send (protects against accidental production SMS). Self-tested via
-  Playwright end-to-end (localStorage seed → card → prefill verified → cleanup).
+- **Book Again**: last quote saved to AsyncStorage ('tidyups_last_quote', src/lib/lastQuote.js). Home shows
+  "Welcome back" card → /quote?bookAgain=<ts> prefills form (banner shown, stale date cleared). On submit of a
+  book-again form, message gets '[Book Again]' tag → admin LeadCard shows gold "Returning customer" chip and
+  strips the tag from the displayed message (production backend untouched — tag rides in the message field).
+- **Cleaner tracking**: /cleaner modal (Contact tab → "Cleaner Check-In"): name+PIN check-in (profile stored in
+  AsyncStorage 'tidyups_cleaner'), Start/Stop sharing via expo-location watchPositionAsync (20s/40m), pings LOCAL
+  backend. Admin → 4th "Team" segment (AdminTeam.js): PIN editor, live cleaner list (green dot if sharing &
+  last_seen<3min, 30s auto-poll), open-in-Google-Maps track button, delete.
+- **Lead alerts**: useLeadAlerts hook (src/lib/leadAlerts.js) in root layout — polls production GET /api/quotes
+  every 60s when tidyups_admin_pw stored, compares created_at vs 'tidyups_last_lead_seen', fires web Notification
+  (web) / expo-notifications local notification (native). Permission requested on admin login.
+- **Store prep**: eas.json (build profiles), app.json plugins (expo-location perm string, expo-notifications),
+  /app/STORE_SUBMISSION_GUIDE.md (user has both Apple + Google accounts; builds must run from user's machine
+  with their Expo login), /app/PRIVACY_POLICY.md (host at tidyupscleaning.com/privacy for store listings).
+- All tested: iteration_6.json (19/19 + 100%), iteration_7.json (20/20 + 100%), Book Again self-tested via
+  Playwright with network interception (no production quote ever submitted).
