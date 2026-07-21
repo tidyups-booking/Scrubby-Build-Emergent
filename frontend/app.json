@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Tidyups Cleaning",
+    "slug": "tidyups-cleaning",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "tidyups",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0611",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tidyups.cleaning"
+    },
+    "android": {
+      "package": "com.tidyups.cleaning",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0611",
+        "foregroundImage": "./assets/images/icon.png"
+      }
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0611",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
+    ]
+  }
+}
