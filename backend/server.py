@@ -155,6 +155,21 @@ async def seed_site_images():
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         logger.info("Ensured 'why' site image")
+    # Ensure the "hero" slot exists too (self-heal if soft-deleted).
+    hero_exists = await db.site_images.count_documents({"section": "hero", "is_deleted": False})
+    if hero_exists == 0:
+        hero_seed = SEED_IMAGES[0]
+        await db.site_images.insert_one({
+            "id": str(uuid.uuid4()),
+            "section": "hero",
+            "label": hero_seed["label"],
+            "order": 0,
+            "url": hero_seed["url"],
+            "storage_path": None,
+            "is_deleted": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info("Ensured 'hero' site image")
 
 
 # ---------------- Routes ----------------
