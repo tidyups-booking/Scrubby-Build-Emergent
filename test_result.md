@@ -101,3 +101,68 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: >
+  Build the Tidyups Cleaning mobile app (Expo/React Native) per /app/MOBILE_APP_SPEC.md.
+  Quotes/admin-login use the PRODUCTION website backend https://bookmycleaning.xyz/api (do not touch production).
+  Dynamic, admin-managed app images use THIS workspace's own backend (/api/app-images*) with its own Mongo +
+  Emergent Object Storage. Admin password: tidyups2026 (X-Admin-Password header). App shows images in a Home
+  "Promotions" carousel and a Gallery tab; hidden Staff Login (Contact tab) opens admin with Leads + Images manager.
+
+backend:
+  - task: "App images API (GET /api/app-images, POST upload, DELETE, POST reorder, GET file/{path})"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added app_images collection endpoints mirroring site-images pattern. Seeds 5 images on startup when collection empty (2 flyers in Emergent Object Storage + 3 external customer-asset URLs). Manually verified GET returns 5 ordered images and file serving returns 200. Needs full test: upload (multipart, auth), delete (soft), reorder, 401 on bad password."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed - ALL 12 tests PASSED. ✅ GET /api/app-images returns 5 seeded images with correct labels in order. ✅ GET /api/app-images/file/{path} serves images correctly (Content-Type: image/jpeg). ✅ POST /api/app-images/upload works with admin auth, image appears in list and file URL serves 200. ✅ Upload correctly returns 401 without auth and with wrong password. ✅ Upload correctly returns 400 for non-image files. ✅ POST /api/app-images/reorder successfully reorders and restores original order. ✅ DELETE /api/app-images/{id} deletes test image, returns 401 with wrong password, returns 404 for nonexistent ID. ✅ POST /api/quotes sanity check passed (quote created with id/status/created_at, no SMS sent locally as expected). ✅ Final verification confirmed image list restored to original 5 images in correct order. All authentication, validation, CRUD operations, and error handling working correctly."
+
+frontend:
+  - task: "Mobile app UI (Home/Services/Quote/Gallery/Contact tabs + /admin with Leads and Images manager)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Expo SDK 57 web preview on port 3000. Verified via screenshots: home renders, gallery shows 5 images, admin login (tidyups2026) works against production, Images tab lists 5 images with reorder/delete/upload UI. NOTE: quote submit POSTs to PRODUCTION and sends a real SMS to the owner - do NOT submit quotes in tests without explicit user approval."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: >
+      Backend testing needed for the NEW app-images API only (this workspace's backend, reachable at the preview URL
+      /api). Use X-Admin-Password: tidyups2026 for protected routes. Do NOT test /api/quotes POST against production
+      (https://bookmycleaning.xyz) - it triggers a real SMS. Testing POST /api/quotes on the LOCAL backend is fine
+      (no Twilio creds locally, SMS is skipped gracefully). After delete/reorder tests, please restore the image list
+      to its original 5-image order (or re-add) so the seeded content stays intact.
+  - agent: "testing"
+    message: >
+      ✅ ALL BACKEND TESTS PASSED (12/12). The app-images API is fully functional. All endpoints tested successfully:
+      GET /api/app-images (public, returns 5 seeded images in correct order), GET /api/app-images/file/{path} (serves images),
+      POST /api/app-images/upload (with auth, validates file types, returns 401 without auth/wrong password, returns 400 for non-images),
+      POST /api/app-images/reorder (reorders and restores successfully), DELETE /api/app-images/{id} (deletes correctly, returns 401/404 appropriately).
+      POST /api/quotes sanity check passed (no SMS sent locally as expected). Image list restored to original 5 images.
+      NO ISSUES FOUND. Backend is production-ready.

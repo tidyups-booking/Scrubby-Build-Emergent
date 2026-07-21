@@ -402,6 +402,120 @@ async def serve_site_image(path: str):
     return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
+# ---------------- App (Mobile) Images ----------------
+# Managed exclusively by the Tidyups mobile app admin ("Images" tab).
+# Fully independent from the website's site_images collection.
+SEED_APP_IMAGES = [
+    {"label": "Move In / Move Out Cleaning", "order": 0,
+     "url": "/api/app-images/file/tidyups-quote/app/0f13d95a-be19-453c-9409-62a66316df07.jpg",
+     "storage_path": "tidyups-quote/app/0f13d95a-be19-453c-9409-62a66316df07.jpg"},
+    {"label": "Deep Cleaning Specialists", "order": 1,
+     "url": "/api/app-images/file/tidyups-quote/app/a3cb0f83-c544-4133-aa17-e14969e120b4.jpg",
+     "storage_path": "tidyups-quote/app/a3cb0f83-c544-4133-aa17-e14969e120b4.jpg"},
+    {"label": "We've Got You Covered!", "order": 2,
+     "url": "https://customer-assets-jai6qajn.emergentagent.net/job_mobile-run-app-1/artifacts/podteo7q_IMG_0625.jpeg"},
+    {"label": "Our Fleet", "order": 3,
+     "url": "https://customer-assets-jai6qajn.emergentagent.net/job_mobile-run-app-1/artifacts/mg7te29i_Untitled%20-%20June%2021%2C%202026%20at%2002.07.37.jpeg"},
+    {"label": "Tidyups Magic", "order": 4,
+     "url": "https://customer-assets-jai6qajn.emergentagent.net/job_mobile-run-app-1/artifacts/fhxupxqx_69AA263F-7E8A-4D4D-8C9F-E625B5872270.jpeg"},
+]
+
+
+def _clean_app_image(doc):
+    return {"id": doc["id"], "label": doc.get("label", ""), "order": doc.get("order", 0), "url": doc["url"]}
+
+
+async def seed_app_images():
+    count = await db.app_images.count_documents({})
+    if count == 0:
+        docs = []
+        for s in SEED_APP_IMAGES:
+            docs.append({
+                "id": str(uuid.uuid4()),
+                "label": s["label"],
+                "order": s["order"],
+                "url": s["url"],
+                "storage_path": s.get("storage_path"),
+                "is_deleted": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        await db.app_images.insert_many(docs)
+        logger.info("Seeded %d app images", len(docs))
+
+
+@api_router.get("/app-images")
+async def list_app_images():
+    docs = await db.app_images.find({"is_deleted": False}).sort("order", 1).to_list(1000)
+    return [_clean_app_image(d) for d in docs]
+
+
+@api_router.post("/app-images/upload")
+async def upload_app_image(
+    file: UploadFile = File(...),
+    label: str = Form(""),
+    x_admin_password: Optional[str] = Header(default=None),
+):
+    _check_admin(x_admin_password)
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in file.filename else "png").lower()
+    content_type = MIME_TYPES.get(ext, file.content_type or "image/png")
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 10MB)")
+    storage_path = f"{APP_NAME}/app/{uuid.uuid4()}.{ext}"
+    try:
+        result = put_object(storage_path, data, content_type)
+    except Exception as e:
+        logger.error("Storage upload failed: %s", e)
+        raise HTTPException(status_code=502, detail="Image upload failed. Please try again.")
+
+    stored_path = result.get("path", storage_path)
+    url = f"/api/app-images/file/{stored_path}"
+    last = await db.app_images.find({"is_deleted": False}).sort("order", -1).to_list(1)
+    order = (last[0]["order"] + 1) if last else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "label": label or "",
+        "order": order,
+        "url": url,
+        "storage_path": stored_path,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.app_images.insert_one(doc)
+    return _clean_app_image(doc)
+
+
+@api_router.delete("/app-images/{image_id}")
+async def delete_app_image(image_id: str, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    res = await db.app_images.update_one({"id": image_id}, {"$set": {"is_deleted": True}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return {"ok": True}
+
+
+@api_router.post("/app-images/reorder")
+async def reorder_app_images(payload: ReorderPayload, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    for idx, image_id in enumerate(payload.order):
+        await db.app_images.update_one(
+            {"id": image_id, "is_deleted": False},
+            {"$set": {"order": idx}},
+        )
+    return {"ok": True}
+
+
+@api_router.get("/app-images/file/{path:path}")
+async def serve_app_image(path: str):
+    try:
+        data, content_type = get_object(path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -421,6 +535,7 @@ async def on_startup():
     except Exception as e:
         logger.error("Storage init failed: %s", e)
     await seed_site_images()
+    await seed_app_images()
 
 
 @app.on_event("shutdown")

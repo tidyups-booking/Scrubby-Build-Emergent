@@ -53,6 +53,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="gallery"
+        options={{
+          title: 'Gallery',
+          tabBarButtonTestID: 'tab-gallery',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'images' : 'images-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="contact"
         options={{
           title: 'Contact',

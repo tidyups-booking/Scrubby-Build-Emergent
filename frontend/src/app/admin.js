@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import { adminLogin, fetchQuotes, formatDate } from '../lib/api';
 import { GradientButton, Chip } from '../components/ui';
+import AdminImages from '../components/AdminImages';
 
 const PW_KEY = 'tidyups_admin_pw';
 
@@ -80,6 +81,7 @@ export default function AdminScreen() {
   const [leads, setLeads] = useState([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState('leads');
 
   const loadLeads = useCallback(async (pw, mode = 'full') => {
     if (mode === 'full') setLoadingLeads(true);
@@ -187,7 +189,7 @@ export default function AdminScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Leads</Text>
+          <Text style={styles.headerTitle}>Admin</Text>
           <Text style={styles.headerSub} testID="admin-lead-count">
             {leads.length} quote request{leads.length === 1 ? '' : 's'}
           </Text>
@@ -202,7 +204,30 @@ export default function AdminScreen() {
         </View>
       </View>
 
-      {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}
+      <View style={styles.segmentRow}>
+        <TouchableOpacity
+          style={[styles.segment, tab === 'leads' && styles.segmentActive]}
+          onPress={() => setTab('leads')}
+          testID="admin-tab-leads"
+        >
+          <Ionicons name="people" size={15} color={tab === 'leads' ? '#fff' : COLORS.textMuted} />
+          <Text style={[styles.segmentText, tab === 'leads' && styles.segmentTextActive]}>Leads</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segment, tab === 'images' && styles.segmentActive]}
+          onPress={() => setTab('images')}
+          testID="admin-tab-images"
+        >
+          <Ionicons name="images" size={15} color={tab === 'images' ? '#fff' : COLORS.textMuted} />
+          <Text style={[styles.segmentText, tab === 'images' && styles.segmentTextActive]}>Images</Text>
+        </TouchableOpacity>
+      </View>
+
+      {tab === 'images' ? (
+        <AdminImages password={storedPw} />
+      ) : (
+        <>
+          {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}
 
       {loadingLeads ? (
         <View style={styles.center}>
@@ -231,6 +256,8 @@ export default function AdminScreen() {
             </View>
           }
         />
+      )}
+        </>
       )}
     </SafeAreaView>
   );
@@ -277,6 +304,27 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: COLORS.text, fontFamily: FONTS.display, fontSize: 26 },
   headerSub: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 13, marginTop: 2 },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  segment: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 11,
+    borderRadius: 13,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  segmentActive: { backgroundColor: COLORS.violet, borderColor: COLORS.violet },
+  segmentText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
+  segmentTextActive: { color: '#fff' },
   iconBtn: {
     width: 40,
     height: 40,

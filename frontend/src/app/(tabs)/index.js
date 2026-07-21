@@ -1,17 +1,27 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, Linking, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
 import { STATS, TRUST_BADGES, WHY_US, TESTIMONIALS, CONTACT } from '../../constants/data';
+import { fetchAppImages, resolveImageUrl } from '../../lib/api';
 import { GradientButton, OutlineButton, SectionHeader, Card, Chip } from '../../components/ui';
 
 const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [promos, setPromos] = useState([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppImages()
+        .then((data) => setPromos(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -75,6 +85,27 @@ export default function HomeScreen() {
             />
           ))}
         </View>
+
+        {/* Promotions (dynamic, admin-managed) */}
+        {promos.length > 0 ? (
+          <View>
+            <SectionHeader kicker="Latest offers" title="Promotions" style={{ marginTop: 32 }} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
+              {promos.map((img, idx) => (
+                <TouchableOpacity key={img.id} activeOpacity={0.9} onPress={() => router.push('/gallery')} testID={`promo-card-${idx}`}>
+                  <Image source={{ uri: resolveImageUrl(img.url) }} style={styles.promoImg} resizeMode="cover" />
+                  {img.label ? (
+                    <View style={styles.promoLabelWrap}>
+                      <Text style={styles.promoLabel} numberOfLines={1}>
+                        {img.label}
+                      </Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {/* Why us */}
         <SectionHeader kicker="Why Tidyups" title="Cleaning you can count on" style={{ marginTop: 32 }} />
@@ -164,6 +195,26 @@ const styles = StyleSheet.create({
   statValue: { fontFamily: FONTS.display, fontSize: 26 },
   statLabel: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 11, marginTop: 4, textAlign: 'center' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  promoImg: {
+    width: 290,
+    height: 210,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.panel,
+  },
+  promoLabelWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(10,6,17,0.75)',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+  promoLabel: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 13 },
   whyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   whyIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   whyTitle: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15 },
