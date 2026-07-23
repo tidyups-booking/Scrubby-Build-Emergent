@@ -40,7 +40,10 @@ export default function HomeScreen() {
               <Text style={styles.brandSub}>Cleaning Service Inc</Text>
             </View>
           </View>
-          <Chip label="Edmonton, AB" icon={<Ionicons name="location" size={13} color={COLORS.pink} />} />
+          <TouchableOpacity style={styles.dispatchBtn} onPress={() => router.push('/admin')} testID="dispatch-btn">
+            <MaterialCommunityIcons name="clipboard-account" size={15} color="#fff" />
+            <Text style={styles.dispatchBtnText}>Dispatch</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Hero */}
@@ -199,6 +202,16 @@ const styles = StyleSheet.create({
   logoImg: { width: 44, height: 44 },
   brandName: { color: COLORS.text, fontFamily: FONTS.display, fontSize: 17, letterSpacing: 1 },
   brandSub: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 10, letterSpacing: 0.5 },
+  dispatchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.violet,
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+  },
+  dispatchBtnText: { color: '#fff', fontFamily: FONTS.bodySemiBold, fontSize: 13 },
   hero: { marginTop: 18 },
   heroTitle: { color: COLORS.text, fontFamily: FONTS.display, fontSize: 38, lineHeight: 44, marginBottom: 14 },
   heroSub: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 15, lineHeight: 23, marginBottom: 22 },

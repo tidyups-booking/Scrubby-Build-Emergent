@@ -108,3 +108,6 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   require() in effect, web-only w/ native fallback), Carto dark_all tiles, circleMarkers (green live/gray stale),
   permanent name tooltips, fitBounds. leaflet.css copied to public/ + linked in +html.js.
 - Post-review polish applied: setError('') on assign/unassign, CleanerPicker inline error, pointerEvents via style.
+- **Dispatch button (owner request)**: violet "Dispatch" pill in Home top bar (testid dispatch-btn, replaced the
+  Edmonton chip) → /admin; app remembers admin password after first login so it's one tap. Self-tested via
+  Playwright (button → login → board).
