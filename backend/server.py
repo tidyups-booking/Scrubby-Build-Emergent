@@ -283,12 +283,14 @@ async def proxy_leads(x_admin_password: Optional[str] = Header(default=None)):
 
     try:
         resp = await run_in_threadpool(_fetch)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Leads server error")
+        return resp.json()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Leads proxy failed: %s", e)
         raise HTTPException(status_code=502, detail="Could not reach the leads server")
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Leads server error")
-    return resp.json()
 
 
 # ---------------- Google Sheets Sync ----------------

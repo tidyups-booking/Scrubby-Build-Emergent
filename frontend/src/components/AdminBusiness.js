@@ -61,7 +61,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
           address: s.address || '',
           city_line: s.city_line || '',
           website: s.website || '',
-          hours: Array.isArray(s.hours) ? s.hours : [],
+          hours: (Array.isArray(s.hours) ? s.hours : []).map((h, i) => ({ ...h, _key: `row-${i}` })),
         });
         setLogoUrl(s.logo_url || null);
       })
@@ -78,7 +78,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
     setError('');
     setSuccess('');
     try {
-      await updateAppSettings(form, password);
+      await updateAppSettings({ ...form, hours: form.hours.map(({ day, time }) => ({ day, time })) }, password);
       await refresh();
       setSuccess('Saved — changes are now live everywhere in the app.');
     } catch (e) {
@@ -206,7 +206,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Business Hours</Text>
         {form.hours.map((h, i) => (
-          <View key={i} style={styles.hourRow}>
+          <View key={h._key || `row-${i}`} style={styles.hourRow}>
             <TextInput
               style={[styles.input, { flex: 1.3 }]}
               value={h.day}
@@ -234,7 +234,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
         ))}
         <TouchableOpacity
           style={[styles.smallBtn, { alignSelf: 'flex-start', marginTop: 4 }]}
-          onPress={() => setForm((f) => ({ ...f, hours: [...f.hours, { day: '', time: '' }] }))}
+          onPress={() => setForm((f) => ({ ...f, hours: [...f.hours, { day: '', time: '', _key: `row-new-${Date.now()}` }] }))}
           testID="admin-biz-hours-add"
         >
           <Ionicons name="add" size={16} color={COLORS.textSoft} />

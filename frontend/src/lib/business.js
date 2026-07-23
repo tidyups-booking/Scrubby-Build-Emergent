@@ -30,7 +30,7 @@ export function BusinessProvider({ children }) {
       setBusiness(mapSettings(s));
       setLogoUrl(s.logo_url ? resolveImageUrl(s.logo_url) : null);
     } catch (e) {
-      console.warn('Business settings fetch failed, using defaults:', e.message || e);
+      if (__DEV__) console.warn('Business settings fetch failed, using defaults:', e.message || e);
     }
   }, []);
 
