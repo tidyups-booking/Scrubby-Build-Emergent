@@ -140,6 +140,10 @@ export default function CleanerScreen() {
     }
   };
 
+  const onJobChange = (updated) => {
+    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+  };
+
   const onSignout = async () => {
     onStop();
     await AsyncStorage.removeItem(PROFILE_KEY);
@@ -243,7 +247,7 @@ export default function CleanerScreen() {
           )}
         </View>
 
-        <CleanerJobs jobs={jobs} onStatus={onJobStatus} />
+        <CleanerJobs jobs={jobs} onStatus={onJobStatus} cleaner={profile} onJobChange={onJobChange} setError={setError} />
 
         <TouchableOpacity style={styles.signout} onPress={onSignout} testID="cleaner-signout">
           <Text style={styles.signoutText}>Sign out ({profile.name})</Text>

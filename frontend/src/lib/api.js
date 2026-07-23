@@ -296,6 +296,77 @@ export async function setAssignmentStatus(assignmentId, cleanerId, pin, status) 
   return res.json();
 }
 
+export async function fetchAssignmentHistory(cleanerId, password) {
+  const qs = cleanerId ? `?cleaner_id=${encodeURIComponent(cleanerId)}` : '';
+  const res = await fetch(`${IMAGES_API}/assignments/history${qs}`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (res.status === 401) {
+    const e = new Error('unauthorized');
+    e.code = 401;
+    throw e;
+  }
+  if (!res.ok) throw new Error('Failed to load history');
+  return res.json();
+}
+
+export async function uploadAssignmentPhoto(assignmentId, kind, cleanerId, pin, asset) {
+  const form = new FormData();
+  const name = asset.fileName || asset.name || `${kind}.jpg`;
+  const type = asset.mimeType || asset.type || 'image/jpeg';
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(asset.uri)).blob();
+    form.append('file', new File([blob], name, { type: blob.type || type }));
+  } else {
+    form.append('file', { uri: asset.uri, name, type });
+  }
+  form.append('kind', kind);
+  form.append('cleaner_id', cleanerId);
+  form.append('pin', pin);
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/photos`, {
+    method: 'POST',
+    body: form,
+  });
+  if (res.status === 401) {
+    const e = new Error('PIN changed — please check in again.');
+    e.code = 401;
+    throw e;
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Photo upload failed (${res.status}). ${text.slice(0, 120)}`);
+  }
+  return res.json();
+}
+
+export async function deleteAssignmentPhoto(assignmentId, photoId, cleanerId, pin) {
+  const qs = `?cleaner_id=${encodeURIComponent(cleanerId)}&pin=${encodeURIComponent(pin)}`;
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/photos/${photoId}${qs}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Photo delete failed');
+  return res.json();
+}
+
+export async function sendReviewRequest(assignmentId, password) {
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/send-review`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password },
+  });
+  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let detail = '';
+    try {
+      detail = JSON.parse(text).detail || '';
+    } catch {
+      detail = text.slice(0, 120);
+    }
+    throw new Error(detail || 'Review send failed');
+  }
+  return res.json();
+}
+
 export function formatDate(iso) {
   try {
     const d = new Date(iso);

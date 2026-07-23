@@ -61,6 +61,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
           address: s.address || '',
           city_line: s.city_line || '',
           website: s.website || '',
+          review_url: s.review_url || '',
           hours: (Array.isArray(s.hours) ? s.hours : []).map((h, i) => ({ ...h, _key: `row-${i}` })),
         });
         setLogoUrl(s.logo_url || null);
@@ -201,6 +202,21 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
         <Field label="Street address" value={form.address} onChangeText={set('address')} placeholder="6510 Gateway Boulevard Suite 1020" testID="admin-biz-address" />
         <Field label="City / province / postal" value={form.city_line} onChangeText={set('city_line')} placeholder="Edmonton, AB T6H 5Z5" testID="admin-biz-city" />
         <Field label="Website" value={form.website} onChangeText={set('website')} placeholder="tidyupscleaning.com" testID="admin-biz-website" />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Review Requests</Text>
+        <Text style={styles.reviewHint}>
+          When a cleaner marks a job as done, we'll text this link to the customer so they can leave a Google review. Grab
+          your business's Google review URL from your Business Profile.
+        </Text>
+        <Field
+          label="Google review link"
+          value={form.review_url}
+          onChangeText={set('review_url')}
+          placeholder="https://g.page/r/..."
+          testID="admin-biz-review-url"
+        />
       </View>
 
       <View style={styles.card}>
@@ -346,4 +362,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   hint: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginTop: 12, textAlign: 'center' },
+  reviewHint: {
+    color: COLORS.textMuted,
+    fontFamily: FONTS.body,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginBottom: 12,
+    marginTop: -4,
+  },
 });

@@ -11,12 +11,14 @@ import AdminLogin from '../components/AdminLogin';
 import AdminImages from '../components/AdminImages';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminTeam from '../components/AdminTeam';
+import AdminHistory from '../components/AdminHistory';
 import CleanerPicker from '../components/CleanerPicker';
 import { requestLeadNotifPermission } from '../lib/leadAlerts';
 
 const PW_KEY = 'tidyups_admin_pw';
 const TABS = [
   { key: 'leads', icon: 'people', label: 'Leads' },
+  { key: 'history', icon: 'time', label: 'History' },
   { key: 'images', icon: 'images', label: 'Images' },
   { key: 'business', icon: 'storefront', label: 'Business' },
   { key: 'team', icon: 'navigate', label: 'Team' },
@@ -228,6 +230,8 @@ export default function AdminScreen() {
         <AdminBusiness password={storedPw} onPasswordChanged={onPasswordChanged} />
       ) : tab === 'team' ? (
         <AdminTeam password={storedPw} />
+      ) : tab === 'history' ? (
+        <AdminHistory password={storedPw} />
       ) : (
         <>
           {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}
@@ -303,8 +307,8 @@ const styles = StyleSheet.create({
   headerSub: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 13, marginTop: 2 },
   segmentRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
+    gap: 6,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   segment: {
@@ -312,15 +316,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     paddingVertical: 11,
-    borderRadius: 13,
+    paddingHorizontal: 4,
+    borderRadius: 12,
     backgroundColor: COLORS.panel,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   segmentActive: { backgroundColor: COLORS.violet, borderColor: COLORS.violet },
-  segmentText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 12.5 },
+  segmentText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
   segmentTextActive: { color: '#fff' },
   iconBtn: {
     width: 40,
