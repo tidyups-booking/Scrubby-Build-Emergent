@@ -111,3 +111,18 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
 - **Dispatch button (owner request)**: violet "Dispatch" pill in Home top bar (testid dispatch-btn, replaced the
   Edmonton chip) → /admin; app remembers admin password after first login so it's one tap. Self-tested via
   Playwright (button → login → board).
+- **Iteration 10 (92/92 backend + frontend 100%)** — three features:
+  - **Job status updates**: assignments lifecycle assigned→on_the_way→cleaning→done via POST
+    /api/assignments/{id}/status (cleaner PIN auth; sets status_updated_at, completed_at on done); cleaner job
+    cards show 3-step status row (JOB_STEPS in cleaner.js, testids cleaner-job-{status}-{i}); jobs filter now
+    $in[assigned,on_the_way,cleaning]; admin lead cards show status pill (STATUS_META: violet/gold/green);
+    assignments auto-poll every 30s on Leads tab. Legacy /done endpoint kept.
+  - **Daily summary**: DailySummary card atop Leads tab (Today's Leads / Active Jobs (status!=done) / Done Today,
+    testids summary-*), computed client-side from leads + full assignmentList state.
+  - **Dispatch password change**: ARCHITECTURE CHANGE — app admin login + leads now hit LOCAL backend
+    (/api/admin/login, new GET /api/leads proxy that relays production /api/quotes using backend/.env
+    PRODUCTION_API_URL + PRODUCTION_ADMIN_PASSWORD via run_in_threadpool). Local password: ADMIN_PW_CACHE
+    (env default, DB override app_settings key="security", loaded at startup, updated on PUT /api/admin/password,
+    min 6 chars). Business tab "Dispatch Password" card (admin-pw-new/confirm/save); on success updates
+    AsyncStorage + parent storedPw via onPasswordChanged. NOTE: cache is process-local — fine single-worker;
+    multi-worker would need per-request DB read.

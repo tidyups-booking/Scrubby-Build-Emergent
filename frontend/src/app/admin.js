@@ -34,7 +34,7 @@ const STATUS_META = {
 function DailySummary({ leads, assignmentList }) {
   const today = new Date().toDateString();
   const leadsToday = leads.filter((l) => l.created_at && new Date(l.created_at).toDateString() === today).length;
-  const activeJobs = assignmentList.filter((a) => STATUS_META[a.status]).length;
+  const activeJobs = assignmentList.filter((a) => a.status !== 'done').length;
   const doneToday = assignmentList.filter(
     (a) => a.status === 'done' && a.completed_at && new Date(a.completed_at).toDateString() === today
   ).length;
