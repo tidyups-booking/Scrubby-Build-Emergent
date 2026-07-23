@@ -1,0 +1,63 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "Code Quality Report - Environment e28e105d flagged: (1) React hook dependencies, (2) excessive component complexity, (3) nested ternaries, (4) inline objects in props (admin.js:195/251, AdminHistory.js:63/165/241, AdminBusiness.js:168), (5) magic numbers (HTTP 401, 60000ms polling), (6) console.warn (already wrapped in __DEV__). Apply the fixes and verify NOTHING breaks in user flows.",
+  "summary": "No relevant testing skill found. Functional UI/API smoke mostly passed after using the actual admin password input selector, but the requested admin-pw-input selector is absent and the configured backend regression command failed 102/103 under pytest-xdist; serial pytest passed 103/103 and oxlint reported 0 warnings/0 errors.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "backend/tests regression suite",
+        "issue": "`python -m pytest backend/tests -q` using configured pytest.ini addopts (-n 2 --dist loadscope) failed: TestAdminPasswordChange.test_change_and_login_lifecycle expected old password to be denied on /api/leads, but received 200. Serial rerun with -n 0 passed 103/103, indicating a parallel shared-state/race issue remains in the required regression command.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminLogin",
+        "issue": "Requested selector data-testid=admin-pw-input is missing; actual selector is data-testid=admin-password-input. Functional login with tidyups2026 works using the actual selector and lands on Leads with all 5 tabs visible.",
+        "selector": "admin-pw-input",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/scripts/iteration14_api_setup.py",
+    "/app/test_reports/scripts/iteration14_api_verify_cleanup.py",
+    "/app/test_reports/iteration14_seed.json",
+    "/app/test_reports/iteration14_cleanup.json",
+    "/app/test_reports/iteration_14.json",
+    "/app/test_reports/bug_verification_14.json"
+  ],
+  "action_items": [
+    "Either restore/add data-testid=admin-pw-input on the admin password field or update the requested test contract; current UI uses admin-password-input.",
+    "Fix or serialize the backend password-change tests/implementation so the configured pytest-xdist regression command passes deterministically.",
+    "Re-run `python -m pytest backend/tests -q` (not only serial -n 0) and the focused admin/cleaner UI flows after changes."
+  ],
+  "critical_code_review_comments": [
+    "Skill lookup was mandatory and returned no relevant testing skill.",
+    "Auth integration playbook was consulted due auth-related flows, but it describes JWT/cookie auth and is not directly applicable to this app's simple X-Admin-Password/X-Cleaner-Pin header model.",
+    "Code inspection confirmed the main AdminHistory inline object cleanup is present (PhotoImage wrapper, LIST_CONTENT_STYLE, extracted styles).",
+    "No MOCKED APIs were used; Twilio review SMS is not configured in preview, and sent_via_sms:false was observed as expected."
+  ],
+  "updated_files": [
+    "/app/test_reports/scripts/iteration14_api_setup.py",
+    "/app/test_reports/scripts/iteration14_api_verify_cleanup.py",
+    "/app/test_reports/iteration14_seed.json",
+    "/app/test_reports/iteration14_cleanup.json",
+    "/app/test_reports/iteration_14.json",
+    "/app/test_reports/bug_verification_14.json"
+  ],
+  "success_rate": {
+    "backend": "92% (targeted API smoke passed; oxlint passed; serial pytest 103/103 passed; configured parallel pytest 102/103 failed)",
+    "frontend": "88% (admin/lead/business/history/team/cleaner flows passed; requested admin-pw-input test id missing)"
+  },
+  "seed_data_creation": "Created one TEST_ITER14 cleaner plus one active and one done assignment; used review_url values for API/UI persistence tests; cleanup deleted seeded cleaner/assignments and restored review_url blank, admin password tidyups2026, and cleaner PIN 1234.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Start by checking that AdminLogin exposes data-testid=admin-pw-input if that remains the contract. Then run `python -m pytest backend/tests -q` with configured xdist addopts; do not rely only on -n 0. The functional UI flow passed on retry using admin-password-input, and API cleanup restored credentials/state.",
+  "rca_of_the_issue": "The AdminLogin component currently defines testID='admin-password-input' rather than the requested admin-pw-input, so automation using the requested selector cannot interact with the login form. The backend failure appears caused by parallel tests mutating shared admin password state while other worker(s) still use the original password, since serial execution passes."
+}

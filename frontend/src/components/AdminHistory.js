@@ -25,6 +25,17 @@ function timeAgoShort(iso) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+const LIST_CONTENT_STYLE = { paddingHorizontal: 20, paddingBottom: 40, gap: 12 };
+
+// Wraps <Image> so we don't recreate a {uri} object on every parent render.
+const PhotoImage = React.memo(function PhotoImage({ url, style, resizeMode }) {
+  const [source, setSource] = useState({ uri: resolveImageUrl(url) });
+  useEffect(() => {
+    setSource({ uri: resolveImageUrl(url) });
+  }, [url]);
+  return <Image source={source} style={style} resizeMode={resizeMode} />;
+});
+
 function CleanerFilter({ cleaners, selected, onSelect }) {
   return (
     <ScrollView
@@ -60,7 +71,7 @@ function PhotoStrip({ photos }) {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStrip}>
       {photos.map((p) => (
         <View key={p.id} style={styles.photoTile}>
-          <Image source={{ uri: resolveImageUrl(p.url) }} style={styles.photoImg} resizeMode="cover" />
+          <PhotoImage url={p.url} style={styles.photoImg} resizeMode="cover" />
           <View style={[styles.kindBadge, p.kind === 'after' && styles.kindBadgeAfter]}>
             <Text style={styles.kindBadgeText}>{p.kind === 'before' ? 'Before' : 'After'}</Text>
           </View>
@@ -92,13 +103,13 @@ function HistoryCard({ item, onSendReview, sendingId, onOpenPhoto }) {
           onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(item.address)}`)}
         >
           <Ionicons name="location" size={14} color={COLORS.textMuted} />
-          <Text style={[styles.rowText, { color: COLORS.textSoft }]}>{item.address}</Text>
+          <Text style={[styles.rowText, styles.rowTextSoft]}>{item.address}</Text>
         </TouchableOpacity>
       ) : null}
       {item.phone ? (
         <TouchableOpacity style={styles.cardRow} onPress={() => Linking.openURL(telHref)}>
           <Ionicons name="call" size={14} color={COLORS.pink} />
-          <Text style={[styles.rowText, { color: COLORS.pink, fontFamily: FONTS.bodySemiBold }]}>{item.phone}</Text>
+          <Text style={[styles.rowText, styles.phoneText]}>{item.phone}</Text>
         </TouchableOpacity>
       ) : null}
 
@@ -112,7 +123,7 @@ function HistoryCard({ item, onSendReview, sendingId, onOpenPhoto }) {
         {item.review_sent_at ? (
           <View style={[styles.metaChip, styles.reviewSent]} testID="history-review-sent">
             <Ionicons name="checkmark-circle" size={12} color={COLORS.success} />
-            <Text style={[styles.metaChipText, { color: COLORS.success }]}>
+            <Text style={[styles.metaChipText, styles.metaChipTextSuccess]}>
               Review sent {timeAgoShort(item.review_sent_at)}
             </Text>
           </View>
@@ -124,7 +135,7 @@ function HistoryCard({ item, onSendReview, sendingId, onOpenPhoto }) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.reviewBtn, isSending && { opacity: 0.7 }]}
+        style={[styles.reviewBtn, isSending && styles.reviewBtnBusy]}
         onPress={() => onSendReview(item)}
         disabled={isSending}
         testID={`history-send-review-${item.id}`}
@@ -162,7 +173,7 @@ function PhotoViewer({ item, onClose }) {
             (item.photos || []).map((p) => (
               <View key={p.id} style={styles.viewerCard}>
                 <Text style={styles.viewerKind}>{p.kind === 'before' ? 'Before' : 'After'}</Text>
-                <Image source={{ uri: resolveImageUrl(p.url) }} style={styles.viewerImg} resizeMode="contain" />
+                <PhotoImage url={p.url} style={styles.viewerImg} resizeMode="contain" />
               </View>
             ))
           )}
@@ -238,7 +249,7 @@ export default function AdminHistory({ password }) {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
+        contentContainerStyle={LIST_CONTENT_STYLE}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -273,7 +284,7 @@ export default function AdminHistory({ password }) {
           />
         )}
         ListEmptyComponent={
-          <View style={[styles.center, { paddingTop: 60 }]}>
+          <View style={[styles.center, styles.emptyPad]}>
             <MaterialCommunityIcons name="clipboard-check-outline" size={44} color={COLORS.textMuted} />
             <Text style={styles.empty}>
               {selectedCleaner
@@ -314,6 +325,11 @@ const styles = StyleSheet.create({
   date: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 11.5, marginTop: 3 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   rowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13, flex: 1 },
+  rowTextSoft: { color: COLORS.textSoft },
+  phoneText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold },
+  emptyPad: { paddingTop: 60 },
+  reviewBtnBusy: { opacity: 0.7 },
+  metaChipTextSuccess: { color: COLORS.success },
   serviceChip: {
     color: COLORS.violetLight,
     fontFamily: FONTS.bodySemiBold,

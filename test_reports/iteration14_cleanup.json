@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "name": "GET app-settings review_url persisted",
+      "ok": true,
+      "detail": "expected=https://g.page/r/ui-iter14-bfe66347 got=https://g.page/r/ui-iter14-bfe66347"
+    },
+    {
+      "name": "history contains done assignment with review_sent_at",
+      "ok": true,
+      "detail": "{'id': 'bfe66347-537c-4f20-8423-ef19b3dfab35', 'quote_id': 'TEST_ITER14_DONE_7776ca50', 'cleaner_id': 'bf150c51-91b8-4c64-9a48-24538909a03f', 'cleaner_name': 'TEST_ITER14_7c2648', 'customer_name': 'TEST Iter14 Done', 'service_type': 'Standa"
+    },
+    {
+      "name": "cleaner jobs contains active assignment",
+      "ok": true,
+      "detail": "[{'id': '61cb0e0e-2833-4079-96fb-72ea5cb6aef6', 'quote_id': 'TEST_ITER14_ACTIVE_f348898e', 'cleaner_id': 'bf150c51-91b8-4c64-9a48-24538909a03f', 'cleaner_name': 'TEST_ITER14_7c2648', 'customer_name': 'TEST Iter14 Active', 'service_type': 'S"
+    }
+  ],
+  "cleanup": "deleted seeded cleaner/assignments; restored review_url/admin password/staff PIN"
+}

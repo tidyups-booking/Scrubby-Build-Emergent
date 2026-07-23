@@ -1,0 +1,70 @@
+{
+  "base": "https://expo-book-cleaning.preview.emergentagent.com",
+  "password": "tidyups2026",
+  "pin": "1234",
+  "created": {
+    "cleaner_id": "bf150c51-91b8-4c64-9a48-24538909a03f",
+    "active_assignment_id": "61cb0e0e-2833-4079-96fb-72ea5cb6aef6",
+    "done_assignment_id": "bfe66347-537c-4f20-8423-ef19b3dfab35",
+    "review_url": "https://g.page/r/test-iter14-991670",
+    "original_review_url": "",
+    "ui_review_url": "https://g.page/r/ui-iter14-bfe66347"
+  },
+  "results": [
+    {
+      "name": "admin login succeeds",
+      "ok": true,
+      "detail": "POST /api/admin/login with tidyups2026"
+    },
+    {
+      "name": "admin wrong password 401",
+      "ok": true,
+      "detail": "wrong pw rejected"
+    },
+    {
+      "name": "history without admin 401",
+      "ok": true,
+      "detail": "GET history no header"
+    },
+    {
+      "name": "app settings returns review_url",
+      "ok": true,
+      "detail": "{\"phone_display\":\"(780) 718-5092\",\"tollfree_display\":\"(833) TIDY-UPS\",\"tollfree_sub\":\"+1 (833) 843-9877\",\"address\":\"6510 Gateway Boulevard Suite 1020\",\"city_lin"
+    },
+    {
+      "name": "cleaner checkin seed",
+      "ok": true,
+      "detail": "{\"cleaner_id\":\"bf150c51-91b8-4c64-9a48-24538909a03f\",\"name\":\"TEST_ITER14_7c2648\"}"
+    },
+    {
+      "name": "active assignment seed",
+      "ok": true,
+      "detail": "{\"id\":\"61cb0e0e-2833-4079-96fb-72ea5cb6aef6\",\"quote_id\":\"TEST_ITER14_ACTIVE_f348898e\",\"cleaner_id\":\"bf150c51-91b8-4c64-9a48-24538909a03f\",\"cleaner_name\":\"TEST_ITER14_7c2648\",\"custo"
+    },
+    {
+      "name": "done assignment seed create",
+      "ok": true,
+      "detail": "{\"id\":\"bfe66347-537c-4f20-8423-ef19b3dfab35\",\"quote_id\":\"TEST_ITER14_DONE_7776ca50\",\"cleaner_id\":\"bf150c51-91b8-4c64-9a48-24538909a03f\",\"cleaner_name\":\"TEST_ITER14_7c2648\",\"custome"
+    },
+    {
+      "name": "done assignment status",
+      "ok": true,
+      "detail": "{\"ok\":true,\"status\":\"done\"}"
+    },
+    {
+      "name": "send review 400 without review_url",
+      "ok": true,
+      "detail": "{\"detail\":\"Set a Google review link in Business settings first\"}"
+    },
+    {
+      "name": "set review_url",
+      "ok": true,
+      "detail": "{\"phone_display\":\"(780) 718-5092\",\"tollfree_display\":\"(833) TIDY-UPS\",\"tollfree_sub\":\"+1 (833) 843-9877\",\"address\":\"6510 Gateway Boulevard Suite 1020\",\"city_line\":\"Edmonton, AB T6H"
+    },
+    {
+      "name": "send review 200 with sent_via_sms false and timestamp",
+      "ok": true,
+      "detail": "{'ok': True, 'sent_via_sms': False, 'review_sent_at': '2026-07-23T20:37:40.608996+00:00', 'review_url': 'https://g.page/r/test-iter14-991670'}"
+    }
+  ]
+}
