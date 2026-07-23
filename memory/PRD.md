@@ -59,6 +59,23 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   Fix in place: package.json start script is `CI=1 expo start --web --port 3000` (watching disabled).
   **NO HOT RELOAD on frontend** — after any frontend code change run `sudo supervisorctl restart frontend` and wait ~25s.
 
+## Done (June 24, 2026 session — code review + fixes, iteration 11: 93/93 backend, frontend 100%)
+- Ran code_review_agent on deployed codebase → verdict READY WITH FIXES (1 MEDIUM, 4 LOW). All fixed + tested:
+  - **MEDIUM — completed jobs vanished from dispatch board**: STATUS_META now includes done:'Completed' (green);
+    LeadCard shows Completed pill + check-circle, hides unassign X, shows "Assign again" button (repeat icon).
+    admin.js loadAssignments maps ALL assignments (active preferred over done per quote_id). Backend
+    create_assignment now delete_many({quote_id, status:{$ne:'done'}}) → done history preserved on re-assign,
+    "Done Today" counter no longer drops. New pytest: test_re_assign_after_done_preserves_history.
+  - LOW fixes: removed dead completeAssignment from api.js (legacy /done endpoint kept on backend — tests use it);
+    leadAlerts poll now clears stored admin pw on 401; unused catch bindings removed (AdminImages, cleaner.js,
+    api.js formatDate). oxlint: 0 warnings 0 errors.
+- Iteration 11 also retro-verified the previously-UNTESTED session-13 refactor (AdminLogin.js / LeadCard.js /
+  CleanerJobs.js extractions) — no regressions, all admin tabs + cleaner flow work end-to-end.
+- **PRODUCTION NOTE**: user redeployed (bookscrubby.com) BEFORE these fixes landed — production still has the
+  pre-fix code. Another redeploy is needed to ship the completed-jobs fix.
+- Known advisory notes from iter 11 (not bugs): done records grow unbounded per quote (consider archival later);
+  re-assign while a cleaner is mid-'cleaning' silently replaces their job; 30s poll refreshes assignments only.
+
 ## Backlog
 - P1: Native builds via EAS — CONFIG READY (eas.json, plugins, guide at /app/STORE_SUBMISSION_GUIDE.md). User has
   both Apple + Google dev accounts; they run `eas build`/`eas submit` from their machine (needs their Expo login).
