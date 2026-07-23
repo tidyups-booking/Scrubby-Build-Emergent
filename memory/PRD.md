@@ -64,9 +64,11 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   both Apple + Google dev accounts; they run `eas build`/`eas submit` from their machine (needs their Expo login).
 - P2: True push notifications + background location for cleaners — bundle with native builds (foreground
   polling/sharing already works everywhere).
-- P3 (code health, from testing agent review): split server.py (~790 lines) into modules; wrap put_object/get_object
+- P3 (code health, from testing agent review): split server.py (~870 lines) into modules; wrap put_object/get_object
   in run_in_threadpool; hard-delete orphaned storage blobs; themed confirm dialogs instead of window.confirm;
-  stale-ping warning on cleaner screen; pause AdminTeam polling when tab hidden; all-cleaners-on-one-map view.
+  stale-ping warning on cleaner screen; pause AdminTeam polling when tab hidden; assignment upsert w/ unique
+  quote_id index; Field(max_length) on AssignmentCreate; dynamic import() for leaflet; skip fitBounds when
+  cleaner set unchanged.
 
 ## Done (June 21, 2026 session)
 - Admin "Business" tab: editable logo (upload/reset), phone, toll-free, address, website, hours — live app-wide.
@@ -96,3 +98,13 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   console.warn added to previously-silent catches (leadAlerts/lastQuote/business/gallery). Verified false
   positives NOT changed: `is None` idioms in google_sheets.py/server.py; hook deps (module constants/stable
   setters — adding them risks loops).
+- **Dispatch Board (iteration 9, 80/80 backend + frontend 100%)**: LOCAL `assignments` collection (snapshot of
+  lead details since production untouchable): POST/GET/DELETE /api/assignments (admin), GET
+  /api/cleaners/{id}/jobs (X-Cleaner-Pin header), POST /api/assignments/{id}/done (cleaner), cascade delete on
+  cleaner removal, 1-assignment-per-quote (delete_many+insert). Admin lead cards: "Assign to cleaner" btn →
+  CleanerPicker.js bottom sheet → "Assigned to {name}" row with unassign X. Cleaner screen: "Your Jobs" section
+  (60s poll) with tappable address/phone + Mark Done; 401 during poll clears jobs + prompts re-checkin.
+- **Team Map View (iteration 9)**: AdminTeam List/Map toggle; TeamMap.js = raw Leaflet (yarn leaflet@1.9.4,
+  require() in effect, web-only w/ native fallback), Carto dark_all tiles, circleMarkers (green live/gray stale),
+  permanent name tooltips, fitBounds. leaflet.css copied to public/ + linked in +html.js.
+- Post-review polish applied: setError('') on assign/unassign, CleanerPicker inline error, pointerEvents via style.

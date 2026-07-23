@@ -195,6 +195,7 @@ export default function AdminScreen() {
     const lead = assignLead;
     setAssignLead(null);
     if (!lead) return;
+    setError('');
     try {
       const address =
         [lead.street_address, lead.city, lead.province, lead.postal_code].filter(Boolean).join(', ') || lead.address || '';
@@ -218,6 +219,7 @@ export default function AdminScreen() {
   };
 
   const onUnassign = async (a) => {
+    setError('');
     try {
       await deleteAssignment(a.id, storedPw);
       loadAssignments(storedPw);

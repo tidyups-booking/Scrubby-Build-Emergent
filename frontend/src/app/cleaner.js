@@ -30,7 +30,12 @@ export default function CleanerScreen() {
       const data = await fetchCleanerJobs(p.cleaner_id, p.pin);
       setJobs(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.warn('Jobs load failed:', e.message || e);
+      if (e.code === 401) {
+        setJobs([]);
+        setError('The cleaner PIN was changed — please sign out and check in again.');
+      } else {
+        console.warn('Jobs load failed:', e.message || e);
+      }
     }
   }, []);
 

@@ -70,7 +70,7 @@ export default function TeamMap({ cleaners }) {
     <View style={styles.wrap} testID="team-map">
       <div ref={divRef} style={{ width: '100%', height: '100%' }} />
       {!hasPoints ? (
-        <View style={styles.overlay} pointerEvents="none">
+        <View style={[styles.overlay, { pointerEvents: 'none' }]}>
           <Text style={styles.fallbackText}>No cleaner locations yet — markers appear when someone shares.</Text>
         </View>
       ) : null}

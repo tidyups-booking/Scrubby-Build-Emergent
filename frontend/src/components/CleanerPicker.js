@@ -11,13 +11,18 @@ function isActive(c) {
 export default function CleanerPicker({ visible, password, leadName, onClose, onPick }) {
   const [cleaners, setCleaners] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!visible) return;
     setLoading(true);
+    setError('');
     fetchCleaners(password)
       .then((data) => setCleaners(Array.isArray(data) ? data : []))
-      .catch(() => setCleaners([]))
+      .catch((e) => {
+        setCleaners([]);
+        setError(e.message === 'unauthorized' ? 'Session expired — please sign in again.' : 'Could not load cleaners — check your connection.');
+      })
       .finally(() => setLoading(false));
   }, [visible, password]);
 
@@ -34,6 +39,10 @@ export default function CleanerPicker({ visible, password, leadName, onClose, on
           {loading ? (
             <View style={styles.center}>
               <ActivityIndicator color={COLORS.pink} />
+            </View>
+          ) : error ? (
+            <View style={styles.center}>
+              <Text style={styles.errorText} testID="cleaner-picker-error">{error}</Text>
             </View>
           ) : (
             <FlatList
@@ -91,4 +100,5 @@ const styles = StyleSheet.create({
   name: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15, flex: 1 },
   live: { color: COLORS.success, fontFamily: FONTS.bodyMedium, fontSize: 12 },
   empty: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13.5, textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },
+  errorText: { color: COLORS.danger, fontFamily: FONTS.bodyMedium, fontSize: 13.5, textAlign: 'center', paddingHorizontal: 20 },
 });
