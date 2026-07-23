@@ -83,7 +83,7 @@ export async function submitQuote(payload) {
 }
 
 export async function adminLogin(password) {
-  const res = await fetch(`${API}/admin/login`, {
+  const res = await fetch(`${IMAGES_API}/admin/login`, {
     method: 'POST',
     headers: { 'X-Admin-Password': password },
   });
@@ -93,7 +93,7 @@ export async function adminLogin(password) {
 }
 
 export async function fetchQuotes(password) {
-  const res = await fetch(`${API}/quotes`, {
+  const res = await fetch(`${IMAGES_API}/leads`, {
     headers: { 'X-Admin-Password': password },
   });
   if (res.status === 401) {
@@ -279,6 +279,30 @@ export async function completeAssignment(assignmentId, cleanerId, pin) {
     body: JSON.stringify({ cleaner_id: cleanerId, pin }),
   });
   if (!res.ok) throw new Error('Could not mark done');
+  return res.json();
+}
+
+export async function changeAdminPassword(newPassword, password) {
+  const res = await fetch(`${IMAGES_API}/admin/password`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: newPassword }),
+  });
+  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text.includes('6 characters') ? 'Password must be at least 6 characters' : 'Password update failed');
+  }
+  return res.json();
+}
+
+export async function setAssignmentStatus(assignmentId, cleanerId, pin, status) {
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cleaner_id: cleanerId, pin, status }),
+  });
+  if (!res.ok) throw new Error('Status update failed');
   return res.json();
 }
 

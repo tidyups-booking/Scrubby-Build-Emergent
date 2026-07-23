@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Header, UploadFile, File,
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import asyncio
@@ -220,8 +221,17 @@ async def create_quote(payload: QuoteCreate):
     return quote
 
 
+ADMIN_PW_CACHE = {"value": os.environ.get('ADMIN_PASSWORD')}
+
+
+async def _load_admin_password():
+    doc = await db.app_settings.find_one({"key": "security"})
+    if doc and doc.get("admin_password"):
+        ADMIN_PW_CACHE["value"] = doc["admin_password"]
+
+
 def _check_admin(password: Optional[str]):
-    expected = os.environ.get('ADMIN_PASSWORD')
+    expected = ADMIN_PW_CACHE["value"]
     if not expected or password != expected:
         raise HTTPException(status_code=401, detail="Invalid admin password")
 
@@ -237,6 +247,48 @@ async def list_quotes(x_admin_password: Optional[str] = Header(default=None)):
 async def admin_login(x_admin_password: Optional[str] = Header(default=None)):
     _check_admin(x_admin_password)
     return {"ok": True}
+
+
+class AdminPasswordUpdate(BaseModel):
+    new_password: str
+
+
+@api_router.put("/admin/password")
+async def change_admin_password(payload: AdminPasswordUpdate, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    new_pw = payload.new_password.strip()
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    await db.app_settings.update_one({"key": "security"}, {"$set": {"admin_password": new_pw}}, upsert=True)
+    ADMIN_PW_CACHE["value"] = new_pw
+    return {"ok": True}
+
+
+PRODUCTION_API_URL = os.environ.get('PRODUCTION_API_URL', '').rstrip('/')
+PRODUCTION_ADMIN_PASSWORD = os.environ.get('PRODUCTION_ADMIN_PASSWORD', '')
+
+
+@api_router.get("/leads")
+async def proxy_leads(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    if not PRODUCTION_API_URL:
+        raise HTTPException(status_code=500, detail="Leads source not configured")
+
+    def _fetch():
+        return requests.get(
+            f"{PRODUCTION_API_URL}/api/quotes",
+            headers={"X-Admin-Password": PRODUCTION_ADMIN_PASSWORD},
+            timeout=15,
+        )
+
+    try:
+        resp = await run_in_threadpool(_fetch)
+    except Exception as e:
+        logger.error("Leads proxy failed: %s", e)
+        raise HTTPException(status_code=502, detail="Could not reach the leads server")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Leads server error")
+    return resp.json()
 
 
 # ---------------- Google Sheets Sync ----------------
@@ -780,7 +832,8 @@ class AssignmentDone(BaseModel):
 
 
 ASSIGNMENT_FIELDS = ("id", "quote_id", "cleaner_id", "cleaner_name", "customer_name", "service_type",
-                     "address", "phone", "preferred_date", "message", "status", "created_at")
+                     "address", "phone", "preferred_date", "message", "status", "created_at",
+                     "status_updated_at", "completed_at")
 
 
 def _clean_assignment(doc):
@@ -824,8 +877,30 @@ async def delete_assignment(assignment_id: str, x_admin_password: Optional[str] 
 @api_router.get("/cleaners/{cleaner_id}/jobs")
 async def cleaner_jobs(cleaner_id: str, x_cleaner_pin: Optional[str] = Header(default=None)):
     _check_pin(x_cleaner_pin, await _get_cleaner_pin())
-    docs = await db.assignments.find({"cleaner_id": cleaner_id, "status": "assigned"}).sort("created_at", -1).to_list(100)
+    docs = await db.assignments.find(
+        {"cleaner_id": cleaner_id, "status": {"$in": ["assigned", "on_the_way", "cleaning"]}}
+    ).sort("created_at", -1).to_list(100)
     return [_clean_assignment(d) for d in docs]
+
+
+class AssignmentStatusUpdate(BaseModel):
+    cleaner_id: str
+    pin: str
+    status: str
+
+
+@api_router.post("/assignments/{assignment_id}/status")
+async def update_assignment_status(assignment_id: str, payload: AssignmentStatusUpdate):
+    _check_pin(payload.pin, await _get_cleaner_pin())
+    if payload.status not in ("on_the_way", "cleaning", "done"):
+        raise HTTPException(status_code=400, detail="Invalid status")
+    updates = {"status": payload.status, "status_updated_at": datetime.now(timezone.utc).isoformat()}
+    if payload.status == "done":
+        updates["completed_at"] = updates["status_updated_at"]
+    res = await db.assignments.update_one({"id": assignment_id, "cleaner_id": payload.cleaner_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return {"ok": True, "status": payload.status}
 
 
 @api_router.post("/assignments/{assignment_id}/done")
@@ -860,6 +935,7 @@ async def on_startup():
         logger.error("Storage init failed: %s", e)
     await seed_site_images()
     await seed_app_images()
+    await _load_admin_password()
 
 
 @app.on_event("shutdown")

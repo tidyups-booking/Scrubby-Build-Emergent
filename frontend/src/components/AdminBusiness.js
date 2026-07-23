@@ -13,13 +13,13 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { fetchAppSettings, updateAppSettings, uploadLogo, resetLogo, resolveImageUrl } from '../lib/api';
+import { fetchAppSettings, updateAppSettings, uploadLogo, resetLogo, resolveImageUrl, changeAdminPassword } from '../lib/api';
 import { GradientButton } from './ui';
 import { useBusiness } from '../lib/business';
 
 const DEFAULT_LOGO = require('../../assets/images/logo.png');
 
-function Field({ label, value, onChangeText, placeholder, testID, keyboardType }) {
+function Field({ label, value, onChangeText, placeholder, testID, keyboardType, secure }) {
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -30,6 +30,7 @@ function Field({ label, value, onChangeText, placeholder, testID, keyboardType }
         placeholder={placeholder}
         placeholderTextColor={COLORS.placeholder}
         keyboardType={keyboardType}
+        secureTextEntry={secure}
         autoCapitalize="none"
         testID={testID}
       />
@@ -37,7 +38,7 @@ function Field({ label, value, onChangeText, placeholder, testID, keyboardType }
   );
 }
 
-export default function AdminBusiness({ password }) {
+export default function AdminBusiness({ password, onPasswordChanged }) {
   const { refresh } = useBusiness();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,6 +47,9 @@ export default function AdminBusiness({ password }) {
   const [success, setSuccess] = useState('');
   const [logoUrl, setLogoUrl] = useState(null);
   const [form, setForm] = useState(null);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
 
   useEffect(() => {
     fetchAppSettings()
@@ -122,6 +126,32 @@ export default function AdminBusiness({ password }) {
       setError(e.message || 'Reset failed');
     } finally {
       setLogoBusy(false);
+    }
+  };
+
+  const onChangePassword = async () => {
+    setError('');
+    setSuccess('');
+    const pw1 = newPw.trim();
+    if (pw1.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (pw1 !== confirmPw.trim()) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await changeAdminPassword(pw1, password);
+      setNewPw('');
+      setConfirmPw('');
+      if (onPasswordChanged) await onPasswordChanged(pw1);
+      setSuccess('Dispatch password updated — the app now uses your new password.');
+    } catch (e) {
+      setError(e.message || 'Password update failed');
+    } finally {
+      setPwBusy(false);
     }
   };
 
@@ -209,6 +239,20 @@ export default function AdminBusiness({ password }) {
         >
           <Ionicons name="add" size={16} color={COLORS.textSoft} />
           <Text style={styles.smallBtnText}>Add row</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Dispatch Password</Text>
+        <Field label="New password" value={newPw} onChangeText={setNewPw} placeholder="At least 6 characters" testID="admin-pw-new" secure />
+        <Field label="Confirm new password" value={confirmPw} onChangeText={setConfirmPw} placeholder="Repeat new password" testID="admin-pw-confirm" secure />
+        <TouchableOpacity style={[styles.smallBtn, { alignSelf: 'flex-start' }]} onPress={onChangePassword} disabled={pwBusy} testID="admin-pw-save">
+          {pwBusy ? (
+            <ActivityIndicator size="small" color={COLORS.pink} />
+          ) : (
+            <Ionicons name="key" size={15} color={COLORS.textSoft} />
+          )}
+          <Text style={styles.smallBtnText}>Update password</Text>
         </TouchableOpacity>
       </View>
 

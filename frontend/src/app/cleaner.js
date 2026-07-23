@@ -6,10 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { checkinCleaner, sendCleanerLocation, stopCleanerSharing, fetchCleanerJobs, completeAssignment } from '../lib/api';
+import { checkinCleaner, sendCleanerLocation, stopCleanerSharing, fetchCleanerJobs, setAssignmentStatus } from '../lib/api';
 import { GradientButton, OutlineButton } from '../components/ui';
 
 const PROFILE_KEY = 'tidyups_cleaner';
+const JOB_STEPS = [
+  { key: 'on_the_way', label: 'On my way', icon: 'car' },
+  { key: 'cleaning', label: 'Cleaning', icon: 'sparkles' },
+  { key: 'done', label: 'Done', icon: 'checkmark-circle' },
+];
 
 export default function CleanerScreen() {
   const router = useRouter();
@@ -125,12 +130,17 @@ export default function CleanerScreen() {
     stopCleanerSharing(profile.cleaner_id, profile.pin).catch(() => {});
   };
 
-  const onJobDone = async (job) => {
+  const onJobStatus = async (job, status) => {
+    setError('');
     try {
-      await completeAssignment(job.id, profile.cleaner_id, profile.pin);
-      loadJobs(profile);
+      await setAssignmentStatus(job.id, profile.cleaner_id, profile.pin, status);
+      if (status === 'done') {
+        setJobs((prev) => prev.filter((j) => j.id !== job.id));
+      } else {
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status } : j)));
+      }
     } catch (e) {
-      setError(e.message || 'Could not mark done');
+      setError(e.message || 'Could not update status');
     }
   };
 
@@ -279,10 +289,22 @@ export default function CleanerScreen() {
                   </View>
                 ) : null}
                 {job.message ? <Text style={styles.jobMessage}>"{job.message}"</Text> : null}
-                <TouchableOpacity style={styles.doneBtn} onPress={() => onJobDone(job)} testID={`cleaner-job-done-${index}`}>
-                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-                  <Text style={styles.doneBtnText}>Mark Done</Text>
-                </TouchableOpacity>
+                <View style={styles.statusRow}>
+                  {JOB_STEPS.map((s) => {
+                    const active = job.status === s.key;
+                    return (
+                      <TouchableOpacity
+                        key={s.key}
+                        style={[styles.statusBtn, active && styles.statusBtnActive]}
+                        onPress={() => onJobStatus(job, s.key)}
+                        testID={`cleaner-job-${s.key}-${index}`}
+                      >
+                        <Ionicons name={s.icon} size={14} color={active ? '#0A0611' : COLORS.textSoft} />
+                        <Text style={[styles.statusBtnText, active && styles.statusBtnTextActive]}>{s.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             ))
           )}
@@ -357,17 +379,21 @@ const styles = StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   jobRowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13.5, flex: 1 },
   jobMessage: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13, fontStyle: 'italic', marginTop: 4, lineHeight: 18 },
-  doneBtn: {
+  statusRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  statusBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    backgroundColor: 'rgba(74,222,128,0.08)',
+    gap: 5,
+    backgroundColor: COLORS.panelSoft,
     borderWidth: 1,
-    borderColor: 'rgba(74,222,128,0.3)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    marginTop: 10,
+    borderColor: COLORS.border,
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
   },
-  doneBtnText: { color: COLORS.success, fontFamily: FONTS.bodySemiBold, fontSize: 13 },
+  statusBtnActive: { backgroundColor: COLORS.success, borderColor: COLORS.success },
+  statusBtnText: { color: COLORS.textSoft, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
+  statusBtnTextActive: { color: '#0A0611' },
 });

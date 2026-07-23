@@ -25,6 +25,37 @@ import { requestLeadNotifPermission } from '../lib/leadAlerts';
 
 const PW_KEY = 'tidyups_admin_pw';
 const BOOK_AGAIN_TAG = '[Book Again]';
+const STATUS_META = {
+  assigned: { label: 'Assigned', color: COLORS.violetLight },
+  on_the_way: { label: 'On the way', color: COLORS.gold },
+  cleaning: { label: 'Cleaning now', color: COLORS.success },
+};
+
+function DailySummary({ leads, assignmentList }) {
+  const today = new Date().toDateString();
+  const leadsToday = leads.filter((l) => l.created_at && new Date(l.created_at).toDateString() === today).length;
+  const activeJobs = assignmentList.filter((a) => STATUS_META[a.status]).length;
+  const doneToday = assignmentList.filter(
+    (a) => a.status === 'done' && a.completed_at && new Date(a.completed_at).toDateString() === today
+  ).length;
+  const items = [
+    { label: "Today's Leads", value: leadsToday, testID: 'summary-leads' },
+    { label: 'Active Jobs', value: activeJobs, testID: 'summary-active' },
+    { label: 'Done Today', value: doneToday, testID: 'summary-done' },
+  ];
+  return (
+    <View style={styles.summaryCard} testID="daily-summary">
+      {items.map((it, i) => (
+        <View key={it.label} style={[styles.summaryItem, i < 2 && styles.summaryDivider]}>
+          <Text style={styles.summaryValue} testID={it.testID}>
+            {it.value}
+          </Text>
+          <Text style={styles.summaryLabel}>{it.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function LeadCard({ item, assignment, onAssign, onUnassign }) {
   const address =
@@ -84,7 +115,15 @@ function LeadCard({ item, assignment, onAssign, onUnassign }) {
       {assignment ? (
         <View style={styles.assignedRow} testID="lead-assigned-row">
           <MaterialCommunityIcons name="account-check" size={16} color={COLORS.violetLight} />
-          <Text style={styles.assignedText}>Assigned to {assignment.cleaner_name}</Text>
+          <Text style={styles.assignedText}>{assignment.cleaner_name}</Text>
+          <View
+            style={[styles.statusPill, { borderColor: (STATUS_META[assignment.status] || STATUS_META.assigned).color }]}
+            testID="lead-status-pill"
+          >
+            <Text style={[styles.statusPillText, { color: (STATUS_META[assignment.status] || STATUS_META.assigned).color }]}>
+              {(STATUS_META[assignment.status] || STATUS_META.assigned).label}
+            </Text>
+          </View>
           <TouchableOpacity onPress={() => onUnassign(assignment)} style={styles.unassignBtn} testID="lead-unassign-btn">
             <Ionicons name="close" size={14} color={COLORS.textMuted} />
           </TouchableOpacity>
@@ -111,14 +150,17 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('leads');
   const [assignments, setAssignments] = useState({});
+  const [assignmentList, setAssignmentList] = useState([]);
   const [assignLead, setAssignLead] = useState(null);
 
   const loadAssignments = useCallback(async (pw) => {
     try {
       const list = await fetchAssignments(pw);
+      const all = Array.isArray(list) ? list : [];
+      setAssignmentList(all);
       const map = {};
-      (Array.isArray(list) ? list : []).forEach((a) => {
-        if (a.status === 'assigned') map[a.quote_id] = a;
+      all.forEach((a) => {
+        if (STATUS_META[a.status]) map[a.quote_id] = a;
       });
       setAssignments(map);
     } catch (e) {
@@ -164,6 +206,17 @@ export default function AdminScreen() {
   useEffect(() => {
     if (storedPw) requestLeadNotifPermission();
   }, [storedPw]);
+
+  useEffect(() => {
+    if (!storedPw || tab !== 'leads') return;
+    const timer = setInterval(() => loadAssignments(storedPw), 30000);
+    return () => clearInterval(timer);
+  }, [storedPw, tab, loadAssignments]);
+
+  const onPasswordChanged = async (newPw) => {
+    await AsyncStorage.setItem(PW_KEY, newPw);
+    setStoredPw(newPw);
+  };
 
   const onLogin = async () => {
     if (!password.trim()) {
@@ -311,7 +364,7 @@ export default function AdminScreen() {
       {tab === 'images' ? (
         <AdminImages password={storedPw} />
       ) : tab === 'business' ? (
-        <AdminBusiness password={storedPw} />
+        <AdminBusiness password={storedPw} onPasswordChanged={onPasswordChanged} />
       ) : tab === 'team' ? (
         <AdminTeam password={storedPw} />
       ) : (
@@ -329,6 +382,7 @@ export default function AdminScreen() {
           renderItem={({ item }) => (
             <LeadCard item={item} assignment={assignments[item.id]} onAssign={setAssignLead} onUnassign={onUnassign} />
           )}
+          ListHeaderComponent={<DailySummary leads={leads} assignmentList={assignmentList} />}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
           refreshControl={
             <RefreshControl
@@ -480,6 +534,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   assignedText: { color: COLORS.violetLight, fontFamily: FONTS.bodySemiBold, fontSize: 13, flex: 1 },
+  statusPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  statusPillText: { fontFamily: FONTS.bodySemiBold, fontSize: 11 },
+  summaryCard: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+  },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryDivider: { borderRightWidth: 1, borderRightColor: COLORS.border },
+  summaryValue: { color: COLORS.pink, fontFamily: FONTS.display, fontSize: 22 },
+  summaryLabel: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 11, marginTop: 3 },
   unassignBtn: { padding: 4 },
   assignBtn: {
     flexDirection: 'row',
