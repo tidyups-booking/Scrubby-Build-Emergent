@@ -89,3 +89,10 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   with their Expo login), /app/PRIVACY_POLICY.md (host at tidyupscleaning.com/privacy for store listings).
 - All tested: iteration_6.json (19/19 + 100%), iteration_7.json (20/20 + 100%), Book Again self-tested via
   Playwright with network interception (no production quote ever submitted).
+- **Code-quality pass (iteration 8, all verified — 68/68 backend, 0 console errors)**: removed both
+  dangerouslySetInnerHTML in +html.js (style → string child; SW registration → public/register-sw.js);
+  test files read ADMIN_PASSWORD from env via conftest (no hardcoded creds); serve_site_image/serve_app_image
+  return moved inside try; `is True/False` assertions → truthiness; contact.js hours key `${day}-${index}`;
+  console.warn added to previously-silent catches (leadAlerts/lastQuote/business/gallery). Verified false
+  positives NOT changed: `is None` idioms in google_sheets.py/server.py; hook deps (module constants/stable
+  setters — adding them risks loops).
