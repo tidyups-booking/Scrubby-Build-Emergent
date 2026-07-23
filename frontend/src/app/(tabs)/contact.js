@@ -67,7 +67,7 @@ export default function ContactScreen() {
         <SectionHeader kicker="When we work" title="Business Hours" style={{ marginTop: 32 }} />
         <Card>
           {CONTACT.hours.map((h, i) => (
-            <View key={i} style={[styles.hoursRow, i < CONTACT.hours.length - 1 && styles.hoursDivider]}>
+            <View key={`${h.day}-${i}`} style={[styles.hoursRow, i < CONTACT.hours.length - 1 && styles.hoursDivider]}>
               <Text style={styles.hoursDay}>{h.day}</Text>
               <Text style={[styles.hoursTime, h.time === 'Closed' && { color: COLORS.textMuted }]}>{h.time}</Text>
             </View>

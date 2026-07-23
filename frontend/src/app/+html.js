@@ -17,16 +17,11 @@ export default function Root({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Tidyups" />
         <ScrollViewStyleReset />
-        <style dangerouslySetInnerHTML={{ __html: 'body{background-color:#0A0611}' }} />
+        <style>{'body{background-color:#0A0611}'}</style>
       </head>
       <body>
         {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}",
-          }}
-        />
+        <script src="/register-sw.js" defer />
       </body>
     </html>
   );

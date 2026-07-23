@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 8 refactor-verification: NO regressions from the code-quality changes. Backend pytest suite: 68/68 pass (-n 0 sequential, ~60s) — test_app_settings_and_pwa 19/19, test_site_images (hero/why/gallery incl. self-heal), test_cleaner_tracking 20/20, backend_test.py. All tests read ADMIN_PASSWORD from backend/.env via conftest.py — no hardcoded creds. Image endpoints verified: GET /api/app-images/file/tidyups-quote/app/0f13d95a-be19-453c-9409-62a66316df07.jpg → 200 image/jpeg; GET /api/site-images/file/bogus.png → 404 (not 500) — try/except restructure of serve_site_image and serve_app_image is correct; GET /api/site-images → hero + why + 4 gallery items; GET /api/app-images → 5 items with fit field. PWA head verified: <link rel=manifest>, <meta theme-color=#0A0611>, external <style>body{background-color:#0A0611}</style> (string child, NOT dangerouslySetInnerHTML), <script src=/register-sw.js defer>. GET /register-sw.js → 200 application/javascript, content registers /sw.js with console.warn on failure. GET /manifest.json, /sw.js, /icons/icon-192.png all 200. Playwright (390px mobile viewport, chromium): SW actually registered — navigator.serviceWorker.getRegistrations() returned 1 within 1s of load. Home tab: hero-title + home-cta-call + home-cta-quote + 5 promo-card-N + tabs (home/services/quote/gallery/contact) all render. Contact tab: business hours render correctly (Monday–Friday 8AM–6PM, Saturday 9AM–4PM, Sunday Closed) — the `${day}-${index}` React key change did not break rendering; contact-phone/tollfree/address/website + staff-login-link + cleaner-checkin-link all present. Gallery: images render. Admin (localStorage tidyups_admin_pw='tidyups2026' + /admin route): all 4 tabs render (admin-tab-leads/images/business/team) and Leads tab shows 3 admin-lead-card entries. ZERO console errors across all pages. Only expected warnings: (a) expo-notifications push-token limitation on web (pre-existing, not this iter), (b) new console.warn from business.js catch when a background fetch briefly fails — this is exactly the new logging added this iter working as designed. No new console errors from any of the touched files (leadAlerts.js, lastQuote.js, business.js, gallery.js, contact.js, +html.js).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_app_settings_and_pwa.py",
+    "/app/backend/tests/test_site_images.py",
+    "/app/backend/tests/test_cleaner_tracking.py",
+    "/app/test_reports/pytest/iter8_pytest.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py remains ~787 lines mixing cleaners + app-images + site-images + settings + sheets + sms — carry-over from iter 7 recommendation to split into routes/ modules. Not a bug, but growing pressure.",
+    "+html.js: External register-sw.js is the correct fix over dangerouslySetInnerHTML. Consider also moving the inline `<style>{'body{background-color:#0A0611}'}</style>` into a link to /theme.css eventually so the head is 100% static — cosmetic, current form is CSP-safe as a string child (no XSS surface).",
+    "business.js/leadAlerts.js/lastQuote.js/gallery.js catch console.warn: good addition. Consider a single tiny logger (e.g., src/lib/log.js exporting warn/error that no-ops in production) so warns don't leak to end-users' consoles in a deployed PWA — future polish.",
+    "contact.js hours key `${day}-${index}` is safe (day names are unique; index disambiguates in case of dupes). This was already unique with day names alone, but the change is defensive and harmless.",
+    "test_cleaner_tracking.py still requires -n 0 (documented in iter 7). Consider marking with @pytest.mark.serial + xdist dist=loadscope, OR fetch current PIN dynamically per-test — carry-over."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (68/68 pytest)", "frontend": "100% (all smoke checks green, 0 console errors)"},
+  "test_credentials": "Admin: tidyups2026 (X-Admin-Password header, from backend/.env ADMIN_PASSWORD). Cleaner PIN: 1234. Ref /app/memory/test_credentials.md.",
+  "seed_data_creation": "None persisted this iteration — all pytest fixtures cleaned up TEST_-prefixed cleaners; no admin state mutated by the smoke pass. Final state: GET /api/cleaners = []; GET /api/staff/pin = {pin:'1234'}; site-images hero+why+4 gallery intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 8 confirmed the pure refactor (dangerouslySetInnerHTML removal → external register-sw.js, env-loaded ADMIN_PASSWORD in tests, try/except restructure of image serving, contact hours key change, empty-catch console.warn additions) introduced ZERO regressions. Baseline for next iteration: SW registers within 1s via /register-sw.js; 68/68 backend tests pass sequentially; admin flow via localStorage tidyups_admin_pw='tidyups2026' + /admin still works; leads/images/business/team tabs all present. Test infra note (still valid): test_cleaner_tracking.py MUST be run with -n 0 (documented in iter 7). Frontend has no hot reload under Metro CI=1, so any src change requires `sudo supervisorctl restart frontend` + ~25s wait. Preview URL for local backend + PWA assets: https://expo-book-cleaning.preview.emergentagent.com. NEVER POST /api/quote to production (real SMS). The console.warn in business.js occasionally fires on first load when the background fetch races the network — this is intended behavior of the new catch logging (working as designed).",
+  "rca of the issue": "N/A — refactor verification only, all checks green."
+}

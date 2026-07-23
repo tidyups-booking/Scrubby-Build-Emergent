@@ -16,7 +16,7 @@ import requests
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL", "https://expo-book-cleaning.preview.emergentagent.com"
 ).rstrip("/")
-ADMIN_PASSWORD = "tidyups2026"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 WRONG_PW = {"X-Admin-Password": "nope"}
 GOOD_PW = {"X-Admin-Password": ADMIN_PASSWORD}
 

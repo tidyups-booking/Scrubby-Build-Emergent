@@ -15,7 +15,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://expo-book-cleaning.preview.emergentagent.com").rstrip("/")
-ADMIN_PASSWORD = "tidyups2026"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 
 def _tiny_png_bytes() -> bytes:
@@ -156,7 +156,7 @@ class TestGalleryUploadAndDelete:
             headers={"X-Admin-Password": ADMIN_PASSWORD},
         )
         assert rd.status_code == 200
-        assert rd.json().get("ok") is True
+        assert rd.json().get("ok")
         _created_ids.remove(new_id)
 
         # Verify soft-deleted (gone from GET)
@@ -305,7 +305,7 @@ class TestReorder:
             headers={"X-Admin-Password": ADMIN_PASSWORD},
         )
         assert r.status_code == 200, r.text
-        assert r.json().get("ok") is True
+        assert r.json().get("ok")
 
         # Verify GET returns reversed ordering with sequential 'order' fields
         after = self._get_gallery()

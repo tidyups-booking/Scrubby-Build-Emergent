@@ -414,9 +414,9 @@ async def reorder_site_images(payload: ReorderPayload, x_admin_password: Optiona
 async def serve_site_image(path: str):
     try:
         data, content_type = get_object(path)
+        return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
     except Exception:
         raise HTTPException(status_code=404, detail="Image not found")
-    return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 # ---------------- App (Mobile) Images ----------------
@@ -529,9 +529,9 @@ async def reorder_app_images(payload: ReorderPayload, x_admin_password: Optional
 async def serve_app_image(path: str):
     try:
         data, content_type = get_object(path)
+        return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
     except Exception:
         raise HTTPException(status_code=404, detail="Image not found")
-    return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 class ImageFitPayload(BaseModel):

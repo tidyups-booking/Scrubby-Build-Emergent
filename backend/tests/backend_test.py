@@ -4,7 +4,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://expo-book-cleaning.preview.emergentagent.com").rstrip("/")
-ADMIN_PASSWORD = "tidyups2026"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 created_quote_ids = []
 
@@ -122,7 +122,7 @@ class TestAdminLogin:
     def test_admin_login_correct(self):
         r = requests.post(f"{BASE_URL}/api/admin/login", headers={"X-Admin-Password": ADMIN_PASSWORD})
         assert r.status_code == 200
-        assert r.json().get("ok") is True
+        assert r.json().get("ok")
 
     def test_admin_login_wrong(self):
         r = requests.post(f"{BASE_URL}/api/admin/login", headers={"X-Admin-Password": "nope"})

@@ -8,7 +8,7 @@ export async function saveLastQuote(form) {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify({ ...form, saved_at: new Date().toISOString() }));
   } catch (e) {
-    // non-critical
+    console.warn('Could not save last quote:', e);
   }
 }
 
@@ -19,6 +19,7 @@ export async function getLastQuote() {
     const data = JSON.parse(raw);
     return data && data.name && data.service_type ? data : null;
   } catch (e) {
+    console.warn('Could not read last quote:', e);
     return null;
   }
 }

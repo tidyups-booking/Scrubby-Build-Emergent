@@ -1,7 +1,7 @@
 """Backend tests for cleaner location tracking + staff PIN endpoints (iter 7).
 
 Local backend under test: preview URL (image/cleaner endpoints).
-Admin password: tidyups2026. Cleaner PIN: 1234.
+Admin password comes from backend/.env (loaded by conftest). Cleaner PIN: 1234.
 Ensures cleanup: deletes any TEST_ cleaners created; restores PIN back to '1234'.
 """
 import os
@@ -12,7 +12,7 @@ import requests
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL", "https://expo-book-cleaning.preview.emergentagent.com"
 ).rstrip("/")
-ADMIN_PW = os.environ.get("ADMIN_PASSWORD", "tidyups2026")
+ADMIN_PW = os.environ.get("ADMIN_PASSWORD", "")
 DEFAULT_PIN = "1234"
 
 GOOD_PW = {"X-Admin-Password": ADMIN_PW}
@@ -149,7 +149,7 @@ class TestCleanerLocation:
                           json={"cleaner_id": cleaner, "pin": DEFAULT_PIN,
                                 "lat": 53.5461, "lng": -113.4938}, timeout=10)
         assert r.status_code == 200
-        assert r.json().get("ok") is True
+        assert r.json().get("ok")
         assert "at" in r.json()
 
         # Verify via admin list
@@ -157,7 +157,7 @@ class TestCleanerLocation:
         assert r2.status_code == 200
         rec = next((c for c in r2.json() if c["id"] == cleaner), None)
         assert rec is not None
-        assert rec["sharing"] is True
+        assert rec["sharing"]
         assert abs(rec["lat"] - 53.5461) < 1e-6
         assert abs(rec["lng"] - (-113.4938)) < 1e-6
         assert rec["last_seen"]
@@ -182,11 +182,11 @@ class TestCleanerLocation:
         r = requests.post(f"{BASE_URL}/api/cleaners/stop",
                          json={"cleaner_id": cleaner, "pin": DEFAULT_PIN}, timeout=10)
         assert r.status_code == 200
-        assert r.json().get("ok") is True
+        assert r.json().get("ok")
 
         r2 = requests.get(f"{BASE_URL}/api/cleaners", headers=GOOD_PW, timeout=10)
         rec = next((c for c in r2.json() if c["id"] == cleaner), None)
-        assert rec is not None and rec["sharing"] is False
+        assert rec is not None and not rec["sharing"]
 
 
 # ------------------------ admin list + delete ------------------------
@@ -224,7 +224,7 @@ class TestCleanerAdmin:
 
         r2 = requests.delete(f"{BASE_URL}/api/cleaners/{cid}", headers=GOOD_PW, timeout=10)
         assert r2.status_code == 200
-        assert r2.json().get("ok") is True
+        assert r2.json().get("ok")
 
         # Confirm gone
         r3 = requests.get(f"{BASE_URL}/api/cleaners", headers=GOOD_PW, timeout=10)

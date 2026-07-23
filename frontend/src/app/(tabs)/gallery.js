@@ -28,7 +28,7 @@ export default function GalleryScreen() {
       const data = await fetchAppImages();
       setImages(Array.isArray(data) ? data : []);
     } catch (e) {
-      // keep whatever we have
+      console.warn('Gallery load failed, keeping current images:', e.message || e);
     } finally {
       setLoading(false);
       setRefreshing(false);
