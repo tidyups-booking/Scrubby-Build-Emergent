@@ -13,6 +13,7 @@ import zlib
 import pytest
 import requests
 
+
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL", "https://expo-book-cleaning.preview.emergentagent.com"
 ).rstrip("/")

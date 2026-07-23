@@ -48,6 +48,75 @@ function statusText(item, active) {
   return 'Never shared location';
 }
 
+const LIST_CONTENT_STYLE = { paddingHorizontal: 20, paddingBottom: 40, gap: 12 };
+const MAP_PIN_ROW_STYLE = { paddingHorizontal: 20 };
+
+function CleanerRow({ item, index, onTrack, onDelete }) {
+  const active = isActive(item);
+  const noLocation = item.lat == null;
+  return (
+    <View style={styles.row} testID={`admin-cleaner-row-${index}`}>
+      <View style={[styles.dot, active ? styles.dotActive : styles.dotIdle]} />
+      <View style={styles.rowText}>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={[styles.sub, active && styles.subActive]}>{statusText(item, active)}</Text>
+      </View>
+      <TouchableOpacity
+        style={[styles.actionBtn, noLocation && styles.actionBtnDisabled]}
+        disabled={noLocation}
+        onPress={() => onTrack(item)}
+        testID={`admin-cleaner-track-${index}`}
+      >
+        <Ionicons name="map" size={16} color={COLORS.pink} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.actionBtn, styles.deleteBtn]}
+        onPress={() => onDelete(item)}
+        testID={`admin-cleaner-delete-${index}`}
+      >
+        <Ionicons name="trash" size={15} color={COLORS.danger} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function PinCard({ pin, setPin, savingPin, onSavePin, error, notice }) {
+  return (
+    <View style={styles.pinCard}>
+      <Text style={styles.pinTitle}>Cleaner PIN</Text>
+      <Text style={styles.pinHint}>
+        Cleaners check in from the Contact tab → "Cleaner Check-In" with this PIN, then share live location while
+        driving to a job.
+      </Text>
+      <View style={styles.pinRow}>
+        <TextInput
+          style={styles.pinInput}
+          value={pin}
+          onChangeText={setPin}
+          keyboardType="number-pad"
+          maxLength={8}
+          placeholder="4-8 digits"
+          placeholderTextColor={COLORS.placeholder}
+          testID="admin-pin-input"
+        />
+        <TouchableOpacity style={styles.pinSave} onPress={onSavePin} disabled={savingPin} testID="admin-pin-save">
+          {savingPin ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.pinSaveText}>Save</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+      {error ? (
+        <Text style={styles.error} testID="admin-team-error">{error}</Text>
+      ) : null}
+      {notice ? (
+        <Text style={styles.notice} testID="admin-team-notice">{notice}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export default function AdminTeam({ password }) {
   const [cleaners, setCleaners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +207,7 @@ export default function AdminTeam({ password }) {
   if (view === 'map') {
     return (
       <View style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 20 }}>{toggle}</View>
+        <View style={MAP_PIN_ROW_STYLE}>{toggle}</View>
         <TeamMap cleaners={cleaners} />
       </View>
     );
@@ -148,7 +217,7 @@ export default function AdminTeam({ password }) {
     <FlatList
       data={cleaners}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
+      contentContainerStyle={LIST_CONTENT_STYLE}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -162,70 +231,24 @@ export default function AdminTeam({ password }) {
       ListHeaderComponent={
         <View>
           {toggle}
-          <View style={styles.pinCard}>
-          <Text style={styles.pinTitle}>Cleaner PIN</Text>
-          <Text style={styles.pinHint}>
-            Cleaners check in from the Contact tab → "Cleaner Check-In" with this PIN, then share live location while
-            driving to a job.
-          </Text>
-          <View style={styles.pinRow}>
-            <TextInput
-              style={styles.pinInput}
-              value={pin}
-              onChangeText={setPin}
-              keyboardType="number-pad"
-              maxLength={8}
-              placeholder="4-8 digits"
-              placeholderTextColor={COLORS.placeholder}
-              testID="admin-pin-input"
-            />
-            <TouchableOpacity style={styles.pinSave} onPress={onSavePin} disabled={savingPin} testID="admin-pin-save">
-              {savingPin ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.pinSaveText}>Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          {error ? (
-            <Text style={styles.error} testID="admin-team-error">
-              {error}
-            </Text>
-          ) : null}
-          {notice ? (
-            <Text style={styles.notice} testID="admin-team-notice">
-              {notice}
-            </Text>
-          ) : null}
-          </View>
+          <PinCard
+            pin={pin}
+            setPin={setPin}
+            savingPin={savingPin}
+            onSavePin={onSavePin}
+            error={error}
+            notice={notice}
+          />
         </View>
       }
-      renderItem={({ item, index }) => {
-        const active = isActive(item);
-        const noLocation = item.lat == null;
-        return (
-          <View style={styles.row} testID={`admin-cleaner-row-${index}`}>
-            <View style={[styles.dot, active ? styles.dotActive : styles.dotIdle]} />
-            <View style={styles.rowText}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={[styles.sub, active && styles.subActive]}>
-                {statusText(item, active)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.actionBtn, noLocation && styles.actionBtnDisabled]}
-              disabled={noLocation}
-              onPress={() => Linking.openURL(`https://maps.google.com/?q=${item.lat},${item.lng}`)}
-              testID={`admin-cleaner-track-${index}`}
-            >
-              <Ionicons name="map" size={16} color={COLORS.pink} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => onDelete(item)} testID={`admin-cleaner-delete-${index}`}>
-              <Ionicons name="trash" size={15} color={COLORS.danger} />
-            </TouchableOpacity>
-          </View>
-        );
-      }}
+      renderItem={({ item, index }) => (
+        <CleanerRow
+          item={item}
+          index={index}
+          onTrack={(c) => Linking.openURL(`https://maps.google.com/?q=${c.lat},${c.lng}`)}
+          onDelete={onDelete}
+        />
+      )}
       ListEmptyComponent={
         <View style={[styles.center, styles.emptyPad]}>
           <MaterialCommunityIcons name="account-group-outline" size={44} color={COLORS.textMuted} />

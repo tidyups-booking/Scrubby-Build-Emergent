@@ -16,6 +16,7 @@ import uuid
 import pytest
 import requests
 
+
 # LOCAL backend (assignments live here; production URL is not used)
 BASE_URL = os.environ.get(
     "EXPO_PUBLIC_IMAGES_URL",

@@ -12,6 +12,8 @@ import { useBusiness } from '../../lib/business';
 import { GradientButton, OutlineButton, SectionHeader, Card, Chip } from '../../components/ui';
 
 const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
+const TOP_EDGES = ['top'];
+const H_SCROLL_CONTENT = { gap: 12, paddingRight: 20 };
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,7 +31,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Top bar */}
         <View style={styles.topBar}>
@@ -121,7 +123,7 @@ export default function HomeScreen() {
         {promos.length > 0 ? (
           <View>
             <SectionHeader kicker="Latest offers" title="Promotions" style={{ marginTop: 32 }} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={H_SCROLL_CONTENT}>
               {promos.map((img, idx) => (
                 <TouchableOpacity key={img.id} activeOpacity={0.9} onPress={() => router.push('/gallery')} testID={`promo-card-${idx}`}>
                   <Image source={{ uri: resolveImageUrl(img.url) }} style={styles.promoImg} resizeMode={img.fit === 'contain' ? 'contain' : 'cover'} />
@@ -156,7 +158,7 @@ export default function HomeScreen() {
 
         {/* Testimonials */}
         <SectionHeader kicker="Reviews" title="What clients say" style={{ marginTop: 32 }} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={H_SCROLL_CONTENT}>
           {TESTIMONIALS.map((t) => (
             <Card key={t.name} style={styles.reviewCard}>
               <View style={styles.starsRow}>

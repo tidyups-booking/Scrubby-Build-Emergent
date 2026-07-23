@@ -24,6 +24,9 @@ import { saveLastQuote, getLastQuote, BOOK_AGAIN_TAG } from '../../lib/lastQuote
 import { GradientButton, OutlineButton, SectionHeader } from '../../components/ui';
 import SelectField from '../../components/SelectField';
 
+const TOP_EDGES = ['top'];
+const KAV_BEHAVIOR = Platform.OS === 'ios' ? 'padding' : undefined;
+
 const INITIAL = {
   name: '',
   phone: '',
@@ -130,7 +133,7 @@ export default function QuoteScreen() {
 
   if (success) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
         <View style={styles.successWrap} testID="quote-success">
           <View style={styles.successIcon}>
             <Ionicons name="checkmark" size={54} color="#fff" />
@@ -163,8 +166,8 @@ export default function QuoteScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
+      <KeyboardAvoidingView style={styles.kavFill} behavior={KAV_BEHAVIOR}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <SectionHeader kicker="Free · No obligation" title="Request a Quote" style={{ marginTop: 14 }} />
           <Text style={styles.intro}>Tell us about your space and we'll get right back to you with a price.</Text>
@@ -232,6 +235,7 @@ export default function QuoteScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  kavFill: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingBottom: 48 },
   intro: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 14, marginBottom: 10, marginTop: -6 },
   prefillBanner: {

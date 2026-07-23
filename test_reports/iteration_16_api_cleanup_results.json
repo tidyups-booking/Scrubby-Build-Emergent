@@ -1,0 +1,46 @@
+{
+  "checks": [
+    {
+      "name": "post_ui_app_settings_get",
+      "ok": true,
+      "status": 200,
+      "detail": "review_url=https://g.page/r/ui-save-iteration-16"
+    },
+    {
+      "name": "restore_original_review_url",
+      "ok": true,
+      "status": 200,
+      "detail": "restored="
+    },
+    {
+      "name": "cleanup_history_without_admin_401",
+      "ok": true,
+      "status": 401,
+      "detail": "{\"detail\":\"Invalid admin password\"}"
+    },
+    {
+      "name": "cleanup_history_with_admin_200",
+      "ok": true,
+      "status": 200,
+      "detail": "count=1"
+    },
+    {
+      "name": "cleanup_seed_cleaner_delete",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "restore_staff_pin_1234",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"pin\":\"1234\"}"
+    },
+    {
+      "name": "final_admin_login_baseline",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true}"
+    }
+  ]
+}

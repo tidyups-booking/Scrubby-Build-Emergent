@@ -18,6 +18,8 @@ import { COLORS, FONTS } from '../constants/theme';
 import { fetchAppImages, uploadAppImage, deleteAppImage, reorderAppImages, setImageFit, resolveImageUrl } from '../lib/api';
 import { GradientButton } from './ui';
 
+const LIST_CONTENT_STYLE = { paddingHorizontal: 20, paddingBottom: 40, gap: 12 };
+
 async function confirmAsync(title, message) {
   if (Platform.OS === 'web') {
     return typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`);
@@ -28,6 +30,94 @@ async function confirmAsync(title, message) {
       { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
     ]);
   });
+}
+
+function UploadCard({ label, setLabel, uploading, error, onUpload }) {
+  return (
+    <View style={styles.uploadCard}>
+      <Text style={styles.uploadTitle}>Add a new image</Text>
+      <TextInput
+        style={styles.input}
+        value={label}
+        onChangeText={setLabel}
+        placeholder="Label (optional) — e.g. Spring Promo"
+        placeholderTextColor={COLORS.placeholder}
+        testID="admin-image-label"
+      />
+      <GradientButton
+        title="Upload Image"
+        loading={uploading}
+        testID="admin-image-upload"
+        icon={<Ionicons name="cloud-upload" size={18} color="#fff" />}
+        onPress={onUpload}
+      />
+      {error ? (
+        <Text style={styles.error} testID="admin-image-error">
+          {error}
+        </Text>
+      ) : null}
+      <Text style={styles.hint}>
+        Images appear in the Home carousel and the Gallery tab instantly. Use the fit toggle on each image: "Fill
+        frame" crops to fill, "Show full" displays the whole graphic.
+      </Text>
+    </View>
+  );
+}
+
+function RowActions({ index, total, onMove, onDelete }) {
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+  return (
+    <View style={styles.actions}>
+      <TouchableOpacity
+        style={[styles.actionBtn, isFirst && styles.actionDisabled]}
+        onPress={() => onMove(index, -1)}
+        disabled={isFirst}
+        testID={`admin-image-up-${index}`}
+      >
+        <Ionicons name="chevron-up" size={17} color={isFirst ? COLORS.placeholder : COLORS.textSoft} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.actionBtn, isLast && styles.actionDisabled]}
+        onPress={() => onMove(index, 1)}
+        disabled={isLast}
+        testID={`admin-image-down-${index}`}
+      >
+        <Ionicons name="chevron-down" size={17} color={isLast ? COLORS.placeholder : COLORS.textSoft} />
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={onDelete} testID={`admin-image-delete-${index}`}>
+        <Ionicons name="trash" size={16} color={COLORS.danger} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ImageRow({ item, index, total, onDelete, onToggleFit, onMove }) {
+  const showFull = item.fit === 'contain';
+  return (
+    <View style={styles.row} testID={`admin-image-row-${index}`}>
+      <Image
+        source={{ uri: resolveImageUrl(item.url) }}
+        style={styles.thumb}
+        resizeMode={showFull ? 'contain' : 'cover'}
+      />
+      <View style={styles.rowText}>
+        <Text style={styles.rowLabel} numberOfLines={2}>
+          {item.label || 'Untitled'}
+        </Text>
+        <Text style={styles.rowOrder}>Position {index + 1} of {total}</Text>
+        <TouchableOpacity style={styles.fitBtn} onPress={() => onToggleFit(item)} testID={`admin-image-fit-${index}`}>
+          <MaterialCommunityIcons
+            name={showFull ? 'fit-to-screen-outline' : 'arrow-expand-all'}
+            size={12}
+            color={COLORS.textSoft}
+          />
+          <Text style={styles.fitText}>{showFull ? 'Show full' : 'Fill frame'}</Text>
+        </TouchableOpacity>
+      </View>
+      <RowActions index={index} total={total} onMove={onMove} onDelete={() => onDelete(item)} />
+    </View>
+  );
 }
 
 export default function AdminImages({ password }) {
@@ -127,7 +217,7 @@ export default function AdminImages({ password }) {
     <FlatList
       data={images}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
+      contentContainerStyle={LIST_CONTENT_STYLE}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -139,76 +229,20 @@ export default function AdminImages({ password }) {
         />
       }
       ListHeaderComponent={
-        <View style={styles.uploadCard}>
-          <Text style={styles.uploadTitle}>Add a new image</Text>
-          <TextInput
-            style={styles.input}
-            value={label}
-            onChangeText={setLabel}
-            placeholder="Label (optional) — e.g. Spring Promo"
-            placeholderTextColor={COLORS.placeholder}
-            testID="admin-image-label"
-          />
-          <GradientButton
-            title="Upload Image"
-            loading={uploading}
-            testID="admin-image-upload"
-            icon={<Ionicons name="cloud-upload" size={18} color="#fff" />}
-            onPress={pickAndUpload}
-          />
-          {error ? (
-            <Text style={styles.error} testID="admin-image-error">
-              {error}
-            </Text>
-          ) : null}
-          <Text style={styles.hint}>
-            Images appear in the Home carousel and the Gallery tab instantly. Use the fit toggle on each image: "Fill
-            frame" crops to fill, "Show full" displays the whole graphic.
-          </Text>
-        </View>
+        <UploadCard label={label} setLabel={setLabel} uploading={uploading} error={error} onUpload={pickAndUpload} />
       }
       renderItem={({ item, index }) => (
-        <View style={styles.row} testID={`admin-image-row-${index}`}>
-          <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.thumb} resizeMode={item.fit === 'contain' ? 'contain' : 'cover'} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel} numberOfLines={2}>
-              {item.label || 'Untitled'}
-            </Text>
-            <Text style={styles.rowOrder}>Position {index + 1} of {images.length}</Text>
-            <TouchableOpacity style={styles.fitBtn} onPress={() => toggleFit(item)} testID={`admin-image-fit-${index}`}>
-              <MaterialCommunityIcons
-                name={item.fit === 'contain' ? 'fit-to-screen-outline' : 'arrow-expand-all'}
-                size={12}
-                color={COLORS.textSoft}
-              />
-              <Text style={styles.fitText}>{item.fit === 'contain' ? 'Show full' : 'Fill frame'}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, index === 0 && styles.actionDisabled]}
-              onPress={() => move(index, -1)}
-              disabled={index === 0}
-              testID={`admin-image-up-${index}`}
-            >
-              <Ionicons name="chevron-up" size={17} color={index === 0 ? COLORS.placeholder : COLORS.textSoft} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, index === images.length - 1 && styles.actionDisabled]}
-              onPress={() => move(index, 1)}
-              disabled={index === images.length - 1}
-              testID={`admin-image-down-${index}`}
-            >
-              <Ionicons name="chevron-down" size={17} color={index === images.length - 1 ? COLORS.placeholder : COLORS.textSoft} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => onDelete(item)} testID={`admin-image-delete-${index}`}>
-              <Ionicons name="trash" size={16} color={COLORS.danger} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <ImageRow
+          item={item}
+          index={index}
+          total={images.length}
+          onDelete={onDelete}
+          onToggleFit={toggleFit}
+          onMove={move}
+        />
       )}
       ListEmptyComponent={
-        <View style={[styles.center, { paddingTop: 60 }]}>
+        <View style={[styles.center, styles.emptyPad]}>
           <MaterialCommunityIcons name="image-off-outline" size={44} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>No images — upload your first one above.</Text>
         </View>
@@ -219,6 +253,7 @@ export default function AdminImages({ password }) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyPad: { paddingTop: 60 },
   uploadCard: {
     backgroundColor: COLORS.panel,
     borderWidth: 1,
@@ -260,6 +295,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
   },
+  rowText: { flex: 1 },
   thumb: { width: 76, height: 76, borderRadius: 12, backgroundColor: COLORS.panelSoft },
   rowLabel: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 14 },
   rowOrder: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginTop: 3 },

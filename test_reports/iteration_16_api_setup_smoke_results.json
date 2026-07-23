@@ -1,0 +1,85 @@
+{
+  "base": "https://expo-book-cleaning.preview.emergentagent.com",
+  "checks": [
+    {
+      "name": "admin_login_correct_password",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "admin_login_wrong_password_401",
+      "ok": true,
+      "status": 401,
+      "detail": "{\"detail\":\"Invalid admin password\"}"
+    },
+    {
+      "name": "app_settings_has_review_url",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"review_url\": \"\"}"
+    },
+    {
+      "name": "history_without_admin_401",
+      "ok": true,
+      "status": 401,
+      "detail": "{\"detail\":\"Invalid admin password\"}"
+    },
+    {
+      "name": "history_with_admin_200",
+      "ok": true,
+      "status": 200,
+      "detail": "count=0"
+    },
+    {
+      "name": "staff_pin_set_1234",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"pin\":\"1234\"}"
+    },
+    {
+      "name": "seed_cleaner_checkin",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"cleaner_id\":\"bceb3301-2283-49f8-a9b1-05d587407e3b\",\"name\":\"TEST_UI_Cleaner_4ea148\"}"
+    },
+    {
+      "name": "seed_active_assignment",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"id\":\"257769ef-8df9-4e42-93a9-3aea7bdcb66e\",\"quote_id\":\"TEST_UI_active_a2028f2a\",\"cleaner_id\":\"bceb3301-2283-49f8-a9b1-05d587407e3b\",\"cleaner_name\":\"TEST_UI_Cleaner_4ea148\",\"customer_name\":\"TEST_UI A"
+    },
+    {
+      "name": "seed_history_assignment_create",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"id\":\"9484edfb-22fd-454f-9eda-26b985cae3bd\",\"quote_id\":\"TEST_UI_history_af87b5e1\",\"cleaner_id\":\"bceb3301-2283-49f8-a9b1-05d587407e3b\",\"cleaner_name\":\"TEST_UI_Cleaner_4ea148\",\"customer_name\":\"TEST_UI "
+    },
+    {
+      "name": "seed_history_assignment_done",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"ok\":true,\"status\":\"done\"}"
+    },
+    {
+      "name": "set_review_url_for_ui",
+      "ok": true,
+      "status": 200,
+      "detail": "{\"phone_display\":\"(780) 718-5092\",\"tollfree_display\":\"(833) TIDY-UPS\",\"tollfree_sub\":\"+1 (833) 843-9877\",\"address\":\"6510 Gateway Boulevard Suite 1020\",\"city_line\":\"Edmonton, AB T6H 5Z5\",\"website\":\"tid"
+    },
+    {
+      "name": "cleaner_jobs_has_active_assignment",
+      "ok": true,
+      "status": 200,
+      "detail": "count=1"
+    }
+  ],
+  "seed": {
+    "cleaner_id": "bceb3301-2283-49f8-a9b1-05d587407e3b",
+    "cleaner_name": "TEST_UI_Cleaner_4ea148",
+    "active_assignment_id": "257769ef-8df9-4e42-93a9-3aea7bdcb66e",
+    "history_assignment_id": "9484edfb-22fd-454f-9eda-26b985cae3bd",
+    "original_review_url": "",
+    "test_review_url": "https://g.page/r/iteration-16-0bbcbf"
+  }
+}

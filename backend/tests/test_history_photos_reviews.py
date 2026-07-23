@@ -11,6 +11,7 @@ import uuid
 import pytest
 import requests
 
+
 BASE_URL = os.environ.get(
     "EXPO_PUBLIC_IMAGES_URL",
     "https://expo-book-cleaning.preview.emergentagent.com",

@@ -1,0 +1,62 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "Latest Code Quality Report Env e28e105d-bedd-45c6-bad8-782f1d891e1a flagged false positives for hook deps/Python is checks/console.warn plus real high-complexity and inline-object refactors; top three complexity and inline object extraction should be fixed without regressing user flows.",
+  "summary": "No relevant testing skill found. Runtime UI/API regression checks passed for admin login/tabs, images, team, business save persistence, history send-review notice (Twilio unset expected), cleaner check-in/job controls, home, and quote select fields. Backend smoke and serial pytest passed (103/103). Not fixed only because the required Quote submit testID `quote-submit-btn` is absent in runtime/source; the button is still present as `quote-submit`, so the user flow works but the requested selector contract is unmet.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "QuoteScreen",
+        "issue": "Required selector data-testid=\"quote-submit-btn\" is missing; runtime/source show data-testid=\"quote-submit\" instead. The visible submit button renders and was not clicked/submitted.",
+        "selector": "[data-testid=\"quote-submit-btn\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/scripts/iteration_16_api_setup_smoke.py",
+    "/app/test_reports/scripts/iteration_16_ui_test.py",
+    "/app/test_reports/scripts/iteration_16_api_cleanup_verify.py",
+    "/app/test_reports/scripts/iteration_16_manual_api_smoke.sh",
+    "/app/test_reports/iteration_16_api_setup_smoke_results.json",
+    "/app/test_reports/iteration_16_api_cleanup_results.json",
+    "/app/test_reports/iteration_16_manual_api_smoke.log",
+    "/app/test_reports/pytest/iteration_16_pytest.log",
+    "/app/test_reports/iteration_16_frontend_lint.log"
+  ],
+  "action_items": [
+    "If the review request selector is authoritative, change QuoteScreen submit button testID from `quote-submit` to `quote-submit-btn` (or support both) and rerun the focused quote/admin smoke.",
+    "Optional: reconcile Expo ESLint failures separately if that lint target is required; they are broader than the requested oxlint/code-quality refactor and did not block runtime flows."
+  ],
+  "critical_code_review_comments": [
+    "Code review confirms the refactor extracted constants/subcomponents in the referenced files without changing API call targets; AdminImages/AdminTeam testIDs remained intact.",
+    "Additional `yarn lint` (Expo ESLint, not oxlint) reports existing/unrelated React 19 lint rules and unescaped-entity errors across multiple files; oxlint was not rerun here."
+  ],
+  "updated_files": [
+    "/app/test_reports/bug_verification_16.json",
+    "/app/test_reports/iteration_16.json",
+    "/app/test_reports/scripts/iteration_16_api_setup_smoke.py",
+    "/app/test_reports/scripts/iteration_16_ui_test.py",
+    "/app/test_reports/scripts/iteration_16_api_cleanup_verify.py",
+    "/app/test_reports/scripts/iteration_16_manual_api_smoke.sh",
+    "/app/test_reports/iteration_16_api_setup_smoke_results.json",
+    "/app/test_reports/iteration_16_api_cleanup_results.json",
+    "/app/test_reports/iteration_16_manual_api_smoke.log",
+    "/app/test_reports/pytest/iteration_16_pytest.log",
+    "/app/test_reports/iteration_16_frontend_lint.log"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "90%"
+  },
+  "seed_data_creation": "Created one TEST_UI cleaner plus one active and one done assignment for runtime UI checks; restored review_url to original blank, restored cleaner PIN 1234, and deleted the seeded cleaner (cascade cleanup). Seeded browser localStorage lastQuote only for Book Again visibility.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL was reachable. Admin password tidyups2026 and cleaner PIN 1234 worked. UI screenshots were captured under /app/test_reports/screenshots/iteration_16 but are intentionally not listed as report links. Backend pytest command `cd /app/backend && PYTHONPATH=. python -m pytest -n 0 -q` passed 103/103. The only deterministic mismatch found is QuoteScreen selector: expected quote-submit-btn, actual quote-submit.",
+  "rca_of_the_issue": "The code-quality refactor did not alter the quote submit button testID. Source `/app/frontend/src/app/(tabs)/quote.js` line 223 still uses `testID=\"quote-submit\"`, while the review request expects `quote-submit-btn`. Runtime confirmed `quote-submit-btn=0` and `quote-submit=1`."
+}
