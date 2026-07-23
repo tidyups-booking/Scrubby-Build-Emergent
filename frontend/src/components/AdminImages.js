@@ -94,7 +94,7 @@ export default function AdminImages({ password }) {
     setImages((prev) => prev.map((i) => (i.id === img.id ? { ...i, fit } : i)));
     try {
       await setImageFit(img.id, fit, password);
-    } catch (e) {
+    } catch {
       setError('Could not change image fit — refreshing');
       load();
     }
@@ -109,7 +109,7 @@ export default function AdminImages({ password }) {
     setImages(next);
     try {
       await reorderAppImages(next.map((i) => i.id), password);
-    } catch (e) {
+    } catch {
       setError('Reorder failed — refreshing');
       load();
     }

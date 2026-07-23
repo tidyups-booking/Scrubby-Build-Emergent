@@ -11,6 +11,7 @@ export const STATUS_META = {
   assigned: { label: 'Assigned', color: COLORS.violetLight },
   on_the_way: { label: 'On the way', color: COLORS.gold },
   cleaning: { label: 'Cleaning now', color: COLORS.success },
+  done: { label: 'Completed', color: COLORS.success },
 };
 
 export function DailySummary({ leads, assignmentList }) {
@@ -46,6 +47,7 @@ export default function LeadCard({ item, assignment, onAssign, onUnassign }) {
   const isReturning = (item.message || '').includes(BOOK_AGAIN_TAG);
   const displayMessage = (item.message || '').replace(BOOK_AGAIN_TAG, '').trim();
   const statusMeta = STATUS_META[assignment && assignment.status] || STATUS_META.assigned;
+  const isDone = !!assignment && assignment.status === 'done';
 
   return (
     <View style={styles.leadCard} testID="admin-lead-card">
@@ -97,21 +99,28 @@ export default function LeadCard({ item, assignment, onAssign, onUnassign }) {
 
       {assignment ? (
         <View style={styles.assignedRow} testID="lead-assigned-row">
-          <MaterialCommunityIcons name="account-check" size={16} color={COLORS.violetLight} />
+          <MaterialCommunityIcons
+            name={isDone ? 'check-circle' : 'account-check'}
+            size={16}
+            color={isDone ? COLORS.success : COLORS.violetLight}
+          />
           <Text style={styles.assignedText}>{assignment.cleaner_name}</Text>
           <View style={[styles.statusPill, { borderColor: statusMeta.color }]} testID="lead-status-pill">
             <Text style={[styles.statusPillText, { color: statusMeta.color }]}>{statusMeta.label}</Text>
           </View>
-          <TouchableOpacity onPress={() => onUnassign(assignment)} style={styles.unassignBtn} testID="lead-unassign-btn">
-            <Ionicons name="close" size={14} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          {isDone ? null : (
+            <TouchableOpacity onPress={() => onUnassign(assignment)} style={styles.unassignBtn} testID="lead-unassign-btn">
+              <Ionicons name="close" size={14} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
-      ) : (
+      ) : null}
+      {!assignment || isDone ? (
         <TouchableOpacity style={styles.assignBtn} onPress={() => onAssign(item)} testID="lead-assign-btn">
-          <Ionicons name="person-add" size={14} color={COLORS.pink} />
-          <Text style={styles.assignBtnText}>Assign to cleaner</Text>
+          <Ionicons name={isDone ? 'repeat' : 'person-add'} size={14} color={COLORS.pink} />
+          <Text style={styles.assignBtnText}>{isDone ? 'Assign again' : 'Assign to cleaner'}</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
     </View>
   );
 }

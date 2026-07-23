@@ -855,7 +855,7 @@ async def create_assignment(payload: AssignmentCreate, x_admin_password: Optiona
         "status": "assigned",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db.assignments.delete_many({"quote_id": payload.quote_id})
+    await db.assignments.delete_many({"quote_id": payload.quote_id, "status": {"$ne": "done"}})
     await db.assignments.insert_one(doc)
     return _clean_assignment(doc)
 

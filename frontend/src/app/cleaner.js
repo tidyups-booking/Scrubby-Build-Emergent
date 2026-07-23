@@ -114,7 +114,7 @@ export default function CleanerScreen() {
         (p) => sendPing(profile, p.coords)
       );
       setSharing(true);
-    } catch (e) {
+    } catch {
       setError('Could not get your location — check GPS is on and try again.');
     } finally {
       setBusy(false);

@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import { adminLogin, fetchQuotes, createAssignment, fetchAssignments, deleteAssignment } from '../lib/api';
-import LeadCard, { DailySummary, STATUS_META } from '../components/LeadCard';
+import LeadCard, { DailySummary } from '../components/LeadCard';
 import AdminLogin from '../components/AdminLogin';
 import AdminImages from '../components/AdminImages';
 import AdminBusiness from '../components/AdminBusiness';
@@ -44,7 +44,8 @@ export default function AdminScreen() {
       setAssignmentList(all);
       const map = {};
       all.forEach((a) => {
-        if (STATUS_META[a.status]) map[a.quote_id] = a;
+        const existing = map[a.quote_id];
+        if (!existing || (existing.status === 'done' && a.status !== 'done')) map[a.quote_id] = a;
       });
       setAssignments(map);
     } catch (e) {

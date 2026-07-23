@@ -138,6 +138,60 @@ class TestCreateAssignment:
         requests.delete(f"{BASE_URL}/api/assignments/{second['id']}",
                         headers={"X-Admin-Password": ADMIN_PASSWORD})
 
+    # NEW FIX (iter 11) — re-assigning after done must PRESERVE the done record
+    def test_re_assign_after_done_preserves_history(self, api, admin_headers, seed_cleaner):
+        quote_id = f"TEST_quote_preserve_{uuid.uuid4().hex[:8]}"
+        # 1. Create first assignment for this quote
+        first = api.post(f"{BASE_URL}/api/assignments",
+                         json=_mk_payload(seed_cleaner["id"], quote_id=quote_id),
+                         headers=admin_headers).json()
+        assert first["status"] == "assigned"
+
+        # 2. Mark it done via /status endpoint
+        status_resp = api.post(
+            f"{BASE_URL}/api/assignments/{first['id']}/status",
+            json={"cleaner_id": seed_cleaner["id"], "pin": CLEANER_PIN, "status": "done"},
+        )
+        assert status_resp.status_code == 200
+
+        # 3. Re-assign the same quote — must NOT delete the done record
+        second = api.post(f"{BASE_URL}/api/assignments",
+                          json=_mk_payload(seed_cleaner["id"], quote_id=quote_id),
+                          headers=admin_headers).json()
+        assert second["id"] != first["id"]
+        assert second["status"] == "assigned"
+
+        # 4. List should contain BOTH records for this quote_id
+        listing = api.get(f"{BASE_URL}/api/assignments",
+                          headers={"X-Admin-Password": ADMIN_PASSWORD}).json()
+        matching = [a for a in listing if a["quote_id"] == quote_id]
+        assert len(matching) == 2, f"expected 2 (1 done + 1 assigned), got {len(matching)}: {matching}"
+        statuses = sorted([a["status"] for a in matching])
+        assert statuses == ["assigned", "done"], f"unexpected statuses: {statuses}"
+        # done record must still be the original id
+        done_rec = next(a for a in matching if a["status"] == "done")
+        assert done_rec["id"] == first["id"]
+        # done record must have completed_at
+        assert done_rec.get("completed_at"), "done record should retain completed_at"
+
+        # 5. Re-assigning AGAIN (with a still-active assignment) should replace the active
+        #    but leave the done record intact
+        third = api.post(f"{BASE_URL}/api/assignments",
+                        json=_mk_payload(seed_cleaner["id"], quote_id=quote_id),
+                        headers=admin_headers).json()
+        listing2 = api.get(f"{BASE_URL}/api/assignments",
+                          headers={"X-Admin-Password": ADMIN_PASSWORD}).json()
+        matching2 = [a for a in listing2 if a["quote_id"] == quote_id]
+        assert len(matching2) == 2, f"expected still 2, got {len(matching2)}"
+        assert any(a["id"] == first["id"] and a["status"] == "done" for a in matching2)
+        assert any(a["id"] == third["id"] and a["status"] == "assigned" for a in matching2)
+        assert not any(a["id"] == second["id"] for a in matching2), "prev active should be replaced"
+
+        # cleanup — remove both records
+        for aid in (first["id"], third["id"]):
+            requests.delete(f"{BASE_URL}/api/assignments/{aid}",
+                            headers={"X-Admin-Password": ADMIN_PASSWORD})
+
 
 # --------------------------- GET / DELETE /assignments ---------------------------
 

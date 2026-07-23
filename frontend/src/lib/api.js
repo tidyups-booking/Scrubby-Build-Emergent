@@ -272,16 +272,6 @@ export async function fetchCleanerJobs(cleanerId, pin) {
   return res.json();
 }
 
-export async function completeAssignment(assignmentId, cleanerId, pin) {
-  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/done`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cleaner_id: cleanerId, pin }),
-  });
-  if (!res.ok) throw new Error('Could not mark done');
-  return res.json();
-}
-
 export async function changeAdminPassword(newPassword, password) {
   const res = await fetch(`${IMAGES_API}/admin/password`, {
     method: 'PUT',
@@ -313,7 +303,7 @@ export function formatDate(iso) {
     const date = d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
     const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
     return `${date} · ${time}`;
-  } catch (e) {
+  } catch {
     return iso || '';
   }
 }

@@ -66,6 +66,10 @@ export function useLeadAlerts() {
           await AsyncStorage.setItem(LAST_SEEN_KEY, newest.created_at);
         }
       } catch (e) {
+        if (e && e.code === 401) {
+          await AsyncStorage.removeItem('tidyups_admin_pw');
+          return;
+        }
         if (__DEV__) console.warn('Lead poll failed (will retry):', e.message || e);
       }
     };
