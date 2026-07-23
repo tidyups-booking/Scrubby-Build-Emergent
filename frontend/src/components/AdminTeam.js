@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import { fetchCleaners, deleteCleaner, fetchStaffPin, updateStaffPin } from '../lib/api';
+import TeamMap from './TeamMap';
 
 function timeAgo(iso) {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -49,6 +50,7 @@ export default function AdminTeam({ password }) {
   const [savingPin, setSavingPin] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [view, setView] = useState('list');
 
   const load = useCallback(async () => {
     try {
@@ -106,6 +108,36 @@ export default function AdminTeam({ password }) {
     );
   }
 
+  const toggle = (
+    <View style={styles.viewToggle}>
+      <TouchableOpacity
+        style={[styles.toggleBtn, view === 'list' && styles.toggleActive]}
+        onPress={() => setView('list')}
+        testID="admin-team-view-list"
+      >
+        <Ionicons name="list" size={14} color={view === 'list' ? '#fff' : COLORS.textMuted} />
+        <Text style={[styles.toggleText, view === 'list' && styles.toggleTextActive]}>List</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.toggleBtn, view === 'map' && styles.toggleActive]}
+        onPress={() => setView('map')}
+        testID="admin-team-view-map"
+      >
+        <Ionicons name="map" size={14} color={view === 'map' ? '#fff' : COLORS.textMuted} />
+        <Text style={[styles.toggleText, view === 'map' && styles.toggleTextActive]}>Map</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (view === 'map') {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 20 }}>{toggle}</View>
+        <TeamMap cleaners={cleaners} />
+      </View>
+    );
+  }
+
   return (
     <FlatList
       data={cleaners}
@@ -122,7 +154,9 @@ export default function AdminTeam({ password }) {
         />
       }
       ListHeaderComponent={
-        <View style={styles.pinCard}>
+        <View>
+          {toggle}
+          <View style={styles.pinCard}>
           <Text style={styles.pinTitle}>Cleaner PIN</Text>
           <Text style={styles.pinHint}>
             Cleaners check in from the Contact tab → "Cleaner Check-In" with this PIN, then share live location while
@@ -157,6 +191,7 @@ export default function AdminTeam({ password }) {
               {notice}
             </Text>
           ) : null}
+          </View>
         </View>
       }
       renderItem={({ item, index }) => {
@@ -202,6 +237,22 @@ export default function AdminTeam({ password }) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  viewToggle: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 11,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  toggleActive: { backgroundColor: COLORS.violet, borderColor: COLORS.violet },
+  toggleText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 12.5 },
+  toggleTextActive: { color: '#fff' },
   pinCard: {
     backgroundColor: COLORS.panel,
     borderWidth: 1,

@@ -236,6 +236,52 @@ export async function updateStaffPin(pin, password) {
   return res.json();
 }
 
+export async function createAssignment(payload, password) {
+  const res = await fetch(`${IMAGES_API}/assignments`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Could not assign — please try again.');
+  return res.json();
+}
+
+export async function fetchAssignments(password) {
+  const res = await fetch(`${IMAGES_API}/assignments`, { headers: { 'X-Admin-Password': password } });
+  if (!res.ok) throw new Error('Failed to load assignments');
+  return res.json();
+}
+
+export async function deleteAssignment(assignmentId, password) {
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Password': password },
+  });
+  if (!res.ok) throw new Error('Unassign failed');
+  return res.json();
+}
+
+export async function fetchCleanerJobs(cleanerId, pin) {
+  const res = await fetch(`${IMAGES_API}/cleaners/${cleanerId}/jobs`, { headers: { 'X-Cleaner-Pin': pin } });
+  if (res.status === 401) {
+    const e = new Error('PIN changed — please check in again.');
+    e.code = 401;
+    throw e;
+  }
+  if (!res.ok) throw new Error('Failed to load jobs');
+  return res.json();
+}
+
+export async function completeAssignment(assignmentId, cleanerId, pin) {
+  const res = await fetch(`${IMAGES_API}/assignments/${assignmentId}/done`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cleaner_id: cleanerId, pin }),
+  });
+  if (!res.ok) throw new Error('Could not mark done');
+  return res.json();
+}
+
 export function formatDate(iso) {
   try {
     const d = new Date(iso);

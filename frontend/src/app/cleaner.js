@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Linking, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { checkinCleaner, sendCleanerLocation, stopCleanerSharing } from '../lib/api';
+import { checkinCleaner, sendCleanerLocation, stopCleanerSharing, fetchCleanerJobs, completeAssignment } from '../lib/api';
 import { GradientButton, OutlineButton } from '../components/ui';
 
 const PROFILE_KEY = 'tidyups_cleaner';
@@ -21,7 +21,25 @@ export default function CleanerScreen() {
   const [sharing, setSharing] = useState(false);
   const [lastSent, setLastSent] = useState(null);
   const [error, setError] = useState('');
+  const [jobs, setJobs] = useState([]);
   const watchRef = useRef(null);
+
+  const loadJobs = useCallback(async (p) => {
+    if (!p) return;
+    try {
+      const data = await fetchCleanerJobs(p.cleaner_id, p.pin);
+      setJobs(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.warn('Jobs load failed:', e.message || e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    loadJobs(profile);
+    const timer = setInterval(() => loadJobs(profile), 60000);
+    return () => clearInterval(timer);
+  }, [profile, loadJobs]);
 
   useEffect(() => {
     AsyncStorage.getItem(PROFILE_KEY)
@@ -102,6 +120,15 @@ export default function CleanerScreen() {
     stopCleanerSharing(profile.cleaner_id, profile.pin).catch(() => {});
   };
 
+  const onJobDone = async (job) => {
+    try {
+      await completeAssignment(job.id, profile.cleaner_id, profile.pin);
+      loadJobs(profile);
+    } catch (e) {
+      setError(e.message || 'Could not mark done');
+    }
+  };
+
   const onSignout = async () => {
     onStop();
     await AsyncStorage.removeItem(PROFILE_KEY);
@@ -110,6 +137,7 @@ export default function CleanerScreen() {
     setPin('');
     setError('');
     setLastSent(null);
+    setJobs([]);
   };
 
   if (checking) {
@@ -163,50 +191,102 @@ export default function CleanerScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.wrap}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()} testID="cleaner-close">
-          <Ionicons name="close" size={22} color={COLORS.textMuted} />
-        </TouchableOpacity>
-
-        <View style={[styles.statusDot, sharing ? styles.dotLive : styles.dotIdle]} />
-        <Text style={styles.title} testID="cleaner-status">
-          {sharing ? "You're live!" : `Hi, ${profile.name.split(' ')[0]}!`}
-        </Text>
-        <Text style={styles.sub}>
-          {sharing
-            ? `Dispatch can see your live location.${lastSent ? ` Last update ${lastSent.toLocaleTimeString()}.` : ''} Keep this screen open while you travel.`
-            : 'Tap below when you head to a job site so dispatch can see you on the way.'}
-        </Text>
-
-        {error ? (
-          <Text style={styles.error} testID="cleaner-error">
-            {error}
+      <TouchableOpacity style={[styles.closeBtn, { zIndex: 10 }]} onPress={() => router.back()} testID="cleaner-close">
+        <Ionicons name="close" size={22} color={COLORS.textMuted} />
+      </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scrollWrap} showsVerticalScrollIndicator={false}>
+        <View style={{ alignItems: 'center' }}>
+          <View style={[styles.statusDot, sharing ? styles.dotLive : styles.dotIdle]} />
+          <Text style={styles.title} testID="cleaner-status">
+            {sharing ? "You're live!" : `Hi, ${profile.name.split(' ')[0]}!`}
           </Text>
-        ) : null}
+          <Text style={styles.sub}>
+            {sharing
+              ? `Dispatch can see your live location.${lastSent ? ` Last update ${lastSent.toLocaleTimeString()}.` : ''} Keep this screen open while you travel.`
+              : 'Tap below when you head to a job site so dispatch can see you on the way.'}
+          </Text>
 
-        {sharing ? (
-          <OutlineButton
-            title="Stop Sharing"
-            testID="cleaner-stop-btn"
-            icon={<Ionicons name="stop-circle" size={18} color={COLORS.danger} />}
-            onPress={onStop}
-            style={{ alignSelf: 'stretch', borderColor: 'rgba(248,113,113,0.4)' }}
-          />
-        ) : (
-          <GradientButton
-            title="Start Sharing Location"
-            testID="cleaner-start-btn"
-            loading={busy}
-            icon={<Ionicons name="navigate" size={18} color="#fff" />}
-            onPress={onStart}
-            style={{ alignSelf: 'stretch' }}
-          />
-        )}
+          {error ? (
+            <Text style={styles.error} testID="cleaner-error">
+              {error}
+            </Text>
+          ) : null}
+
+          {sharing ? (
+            <OutlineButton
+              title="Stop Sharing"
+              testID="cleaner-stop-btn"
+              icon={<Ionicons name="stop-circle" size={18} color={COLORS.danger} />}
+              onPress={onStop}
+              style={{ alignSelf: 'stretch', borderColor: 'rgba(248,113,113,0.4)' }}
+            />
+          ) : (
+            <GradientButton
+              title="Start Sharing Location"
+              testID="cleaner-start-btn"
+              loading={busy}
+              icon={<Ionicons name="navigate" size={18} color="#fff" />}
+              onPress={onStart}
+              style={{ alignSelf: 'stretch' }}
+            />
+          )}
+        </View>
+
+        <View style={styles.jobsSection}>
+          <Text style={styles.jobsTitle}>Your Jobs</Text>
+          {jobs.length === 0 ? (
+            <Text style={styles.noJobs} testID="cleaner-no-jobs">
+              No jobs assigned right now — check back later.
+            </Text>
+          ) : (
+            jobs.map((job, index) => (
+              <View key={job.id} style={styles.jobCard} testID={`cleaner-job-${index}`}>
+                <View style={styles.jobTop}>
+                  <Text style={styles.jobName}>{job.customer_name}</Text>
+                  <Text style={styles.jobService}>{job.service_type}</Text>
+                </View>
+                {job.address ? (
+                  <TouchableOpacity
+                    style={styles.jobRow}
+                    onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(job.address)}`)}
+                    testID={`cleaner-job-address-${index}`}
+                  >
+                    <Ionicons name="location" size={15} color={COLORS.pink} />
+                    <Text style={[styles.jobRowText, { color: COLORS.pink, fontFamily: FONTS.bodySemiBold }]}>
+                      {job.address}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                {job.phone ? (
+                  <TouchableOpacity
+                    style={styles.jobRow}
+                    onPress={() => Linking.openURL(`tel:${(job.phone || '').replace(/[^+\d]/g, '')}`)}
+                    testID={`cleaner-job-phone-${index}`}
+                  >
+                    <Ionicons name="call" size={15} color={COLORS.textMuted} />
+                    <Text style={styles.jobRowText}>{job.phone}</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {job.preferred_date ? (
+                  <View style={styles.jobRow}>
+                    <Ionicons name="calendar" size={15} color={COLORS.textMuted} />
+                    <Text style={styles.jobRowText}>Preferred: {job.preferred_date}</Text>
+                  </View>
+                ) : null}
+                {job.message ? <Text style={styles.jobMessage}>"{job.message}"</Text> : null}
+                <TouchableOpacity style={styles.doneBtn} onPress={() => onJobDone(job)} testID={`cleaner-job-done-${index}`}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.doneBtnText}>Mark Done</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
 
         <TouchableOpacity style={styles.signout} onPress={onSignout} testID="cleaner-signout">
           <Text style={styles.signoutText}>Sign out ({profile.name})</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -247,4 +327,42 @@ const styles = StyleSheet.create({
   },
   signout: { marginTop: 22, padding: 8 },
   signoutText: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 13 },
+  scrollWrap: { paddingHorizontal: 24, paddingTop: 70, paddingBottom: 40 },
+  jobsSection: { marginTop: 32, alignSelf: 'stretch' },
+  jobsTitle: {
+    color: COLORS.gold,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  noJobs: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13.5 },
+  jobCard: {
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  jobTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 },
+  jobName: { color: COLORS.text, fontFamily: FONTS.heading, fontSize: 16, flex: 1 },
+  jobService: { color: COLORS.violetLight, fontFamily: FONTS.bodyMedium, fontSize: 12, marginTop: 2 },
+  jobRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  jobRowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13.5, flex: 1 },
+  jobMessage: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13, fontStyle: 'italic', marginTop: 4, lineHeight: 18 },
+  doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(74,222,128,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.3)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  doneBtnText: { color: COLORS.success, fontFamily: FONTS.bodySemiBold, fontSize: 13 },
 });

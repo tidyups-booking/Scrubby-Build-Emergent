@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 9 — Dispatch Board + Team Map View feature testing. 100% pass. Backend: 12 new pytest cases in /app/backend/tests/test_assignments.py covering POST/GET/DELETE /api/assignments, /cleaners/{id}/jobs, /assignments/{id}/done, and DELETE /api/cleaners cascade — ALL 12 passed. Full regression suite 80/80 (68 previous + 12 new) in 87s with -n 0. Frontend (Playwright, mobile 390x844): full dispatch UI flow works end-to-end: (1) admin /admin loads via localStorage.tidyups_admin_pw='tidyups2026', shows 3 real production leads with 3 [lead-assign-btn]; (2) tapping first Assign opens [cleaner-picker] bottom-sheet with QA Dispatch cleaner + live dot; (3) picking [cleaner-pick-0] causes [lead-assigned-row] to render with text 'Assigned to QA Dispatch'; (4) /cleaner with localStorage.tidyups_cleaner={cleaner_id,name,pin} JSON shows the job in Your Jobs section — [cleaner-job-0] with customer_name, tappable [cleaner-job-address-0], [cleaner-job-phone-0], and [cleaner-job-done-0]; (5) Mark Done removes the job card and [cleaner-no-jobs] appears; (6) admin Leads refresh — lead reverts to Assign button (status=done not shown as assigned); (7) re-assign + [lead-unassign-btn] X restores Assign button; (8) Team tab List/Map toggle works — Map view renders [team-map] with 6 leaflet-tile-loaded tiles, 1 .leaflet-interactive marker, tooltip 'QA Dispatch — live'; toggle back to List renders pin card + cleaner row again. (9) Regression spot: Images tab renders, Business tab renders, cleaner fresh check-in (no localStorage) shows name/pin form + Check In button, Your Jobs section correctly hidden pre-checkin. Zero console errors — only expected expo-notifications web-push warning and one 'Lead poll failed (will retry)' warning (pre-existing intermittent, not caused by this iteration). Cleanup: DELETE /api/cleaners/{QA_CID} confirmed, both /api/cleaners and /api/assignments are [] after teardown; no test data leaked to production leads (never POSTed /api/quotes).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_assignments.py",
+    "/app/backend/tests/test_cleaner_tracking.py",
+    "/app/backend/tests/test_app_settings_and_pwa.py",
+    "/app/backend/tests/test_site_images.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter9_assignments.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py has grown to 867 lines and still mixes 6+ concerns (cleaners, assignments, app-images, site-images, settings, sheets, sms). The Job Assignments section (~lines 765-840) is a clean, self-contained slice that would be trivial to extract to /app/backend/routes/assignments.py — carry-over from iter 7/8 recommendation.",
+    "backend/server.py:790 create_assignment — the delete_many({'quote_id': ...}) then insert_one is 2 sequential ops without a transaction. In practice fine (single writer, tolerable race), but under concurrent admin re-assigns of the same quote you could theoretically get 0 or 2 rows momentarily. Consider replace_one(..., upsert=True) with a unique index on quote_id, OR just document the invariant. Not a bug today.",
+    "backend/server.py:766 AssignmentCreate has no length validators on customer_name/address/message — a malicious admin could store multi-KB junk. Low priority (admin-gated), but Pydantic Field(max_length=...) would harden it.",
+    "frontend admin.js:194 onAssignPick — success path does not clear stale `error` state from a previous failed assign, so a leftover red banner can persist after a subsequent successful assign. One-line fix: setError('') at start of onAssignPick / onUnassign.",
+    "frontend cleaner.js:40 60s poll interval is fine, but fetchCleanerJobs errors are only console.warn'd — a stale 401 (PIN changed while polling) will silently keep the last jobs on screen forever. Consider clearing jobs + surfacing 'Please sign out and check in again' when e.code === 401 (mirrors sendCleanerLocation handling on line 80).",
+    "frontend CleanerPicker.js:20 .catch(() => setCleaners([])) swallows the error message — user just sees empty list. Consider surfacing a small inline error so admin can tell 'no cleaners exist' from 'network failed'.",
+    "frontend TeamMap.js:16 require('leaflet') inside useEffect works but bundles leaflet into the main chunk. Consider dynamic import() so leaflet only ships when the admin actually opens the Map view — perf-only, not a bug.",
+    "frontend TeamMap.js:44 fitBounds is called on every effect run — when only 1 point exists, this zooms the map to maxZoom=14 which is fine, but on subsequent 60s cleaner refreshes the map re-centers/re-zooms even if nothing moved. Consider skipping fitBounds when the cleaner set didn't change, or only on first render.",
+    "admin.js:113 assignments state is a { quote_id -> assignment } map — safe today because backend enforces 1-per-quote via delete_many, but if that invariant ever loosens (e.g., multi-cleaner assign), the frontend map would silently drop assignments. Consider storing an array and derive 'is assigned' via .find().",
+    "console warning 'props.pointerEvents is deprecated' fires from TeamMap.js overlay — swap `pointerEvents=\"none\"` prop for style={{ pointerEvents: 'none' }} to silence a runtime deprecation warning in React Native Web."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_assignments.py (new — 12 pytest cases for Dispatch feature)"
+  ],
+  "success_rate": {"backend": "100% (80/80 pytest, incl. 12 new assignment tests)", "frontend": "100% (all dispatch + map + regression steps passed, 0 console errors)"},
+  "test_credentials": "Admin: tidyups2026 (X-Admin-Password header, from backend/.env ADMIN_PASSWORD). Cleaner PIN: 1234 (default). Ref /app/memory/test_credentials.md.",
+  "seed_data_creation": "Created cleaner 'QA Dispatch' via POST /api/cleaners/checkin + 1 location ping for the map/picker test. CLEANED UP: DELETE /api/cleaners/{QA_CID} at teardown — verified /api/cleaners=[] and /api/assignments=[]. All test-created assignments cascade-deleted automatically. TEST_-prefixed pytest cleaners are cleaned up in-fixture. No production writes (never POSTed /api/quotes).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 9 fully validated the new Dispatch Board (assign/mark-done/unassign) + Team Map View (Leaflet dark Carto tiles, circle markers, tooltips). Backend suite now 80 tests; run with -n 0 (test_cleaner_tracking.py still needs sequential — same as iter 7/8). test_assignments.py uses ephemeral TEST_ cleaners per fixture and cascade-cleans in teardown. Frontend note: no hot reload under Metro CI=1 — any src change requires `sudo supervisorctl restart frontend` + ~25s. Leaflet CSS is served at /leaflet.css and linked in the HTML head (confirmed working — tiles loaded correctly). Map only mounts on web (Platform.OS === 'web'); native shows a friendly fallback. Baseline state after iter 9: cleaners=[], assignments=[], staff PIN=1234, admin_pw=tidyups2026. Production has 3 real leads visible in admin /leads (read-only via GET, assigning them only writes to local /api/assignments).",
+  "rca of the issue": "N/A — no bugs found. Feature works end-to-end with the specified test IDs and flows."
+}

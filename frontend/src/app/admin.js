@@ -15,17 +15,18 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { adminLogin, fetchQuotes, formatDate } from '../lib/api';
+import { adminLogin, fetchQuotes, formatDate, createAssignment, fetchAssignments, deleteAssignment } from '../lib/api';
 import { GradientButton, Chip } from '../components/ui';
 import AdminImages from '../components/AdminImages';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminTeam from '../components/AdminTeam';
+import CleanerPicker from '../components/CleanerPicker';
 import { requestLeadNotifPermission } from '../lib/leadAlerts';
 
 const PW_KEY = 'tidyups_admin_pw';
 const BOOK_AGAIN_TAG = '[Book Again]';
 
-function LeadCard({ item }) {
+function LeadCard({ item, assignment, onAssign, onUnassign }) {
   const address =
     [item.street_address, item.city, item.province, item.postal_code].filter(Boolean).join(', ') || item.address;
   const telHref = `tel:${(item.phone || '').replace(/[^+\d]/g, '')}`;
@@ -79,6 +80,21 @@ function LeadCard({ item }) {
       ) : null}
 
       {displayMessage ? <Text style={styles.leadMessage}>"{displayMessage}"</Text> : null}
+
+      {assignment ? (
+        <View style={styles.assignedRow} testID="lead-assigned-row">
+          <MaterialCommunityIcons name="account-check" size={16} color={COLORS.violetLight} />
+          <Text style={styles.assignedText}>Assigned to {assignment.cleaner_name}</Text>
+          <TouchableOpacity onPress={() => onUnassign(assignment)} style={styles.unassignBtn} testID="lead-unassign-btn">
+            <Ionicons name="close" size={14} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.assignBtn} onPress={() => onAssign(item)} testID="lead-assign-btn">
+          <Ionicons name="person-add" size={14} color={COLORS.pink} />
+          <Text style={styles.assignBtnText}>Assign to cleaner</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -94,9 +110,25 @@ export default function AdminScreen() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('leads');
+  const [assignments, setAssignments] = useState({});
+  const [assignLead, setAssignLead] = useState(null);
+
+  const loadAssignments = useCallback(async (pw) => {
+    try {
+      const list = await fetchAssignments(pw);
+      const map = {};
+      (Array.isArray(list) ? list : []).forEach((a) => {
+        if (a.status === 'assigned') map[a.quote_id] = a;
+      });
+      setAssignments(map);
+    } catch (e) {
+      console.warn('Assignments load failed:', e.message || e);
+    }
+  }, []);
 
   const loadLeads = useCallback(async (pw, mode = 'full') => {
     if (mode === 'full') setLoadingLeads(true);
+    loadAssignments(pw);
     try {
       const data = await fetchQuotes(pw);
       setLeads(Array.isArray(data) ? data : []);
@@ -113,7 +145,7 @@ export default function AdminScreen() {
       setLoadingLeads(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [loadAssignments]);
 
   useEffect(() => {
     (async () => {
@@ -157,6 +189,41 @@ export default function AdminScreen() {
     await AsyncStorage.removeItem(PW_KEY);
     setStoredPw(null);
     setLeads([]);
+  };
+
+  const onAssignPick = async (cleaner) => {
+    const lead = assignLead;
+    setAssignLead(null);
+    if (!lead) return;
+    try {
+      const address =
+        [lead.street_address, lead.city, lead.province, lead.postal_code].filter(Boolean).join(', ') || lead.address || '';
+      await createAssignment(
+        {
+          quote_id: lead.id,
+          cleaner_id: cleaner.id,
+          customer_name: lead.name,
+          service_type: lead.service_type,
+          address,
+          phone: lead.phone || null,
+          preferred_date: lead.preferred_date || null,
+          message: (lead.message || '').replace('[Book Again]', '').trim() || null,
+        },
+        storedPw
+      );
+      loadAssignments(storedPw);
+    } catch (e) {
+      setError(e.message || 'Assign failed');
+    }
+  };
+
+  const onUnassign = async (a) => {
+    try {
+      await deleteAssignment(a.id, storedPw);
+      loadAssignments(storedPw);
+    } catch (e) {
+      setError(e.message || 'Unassign failed');
+    }
   };
 
   if (checking) {
@@ -257,7 +324,9 @@ export default function AdminScreen() {
         <FlatList
           data={leads}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <LeadCard item={item} />}
+          renderItem={({ item }) => (
+            <LeadCard item={item} assignment={assignments[item.id]} onAssign={setAssignLead} onUnassign={onUnassign} />
+          )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
           refreshControl={
             <RefreshControl
@@ -279,6 +348,14 @@ export default function AdminScreen() {
       )}
         </>
       )}
+
+      <CleanerPicker
+        visible={!!assignLead}
+        password={storedPw}
+        leadName={assignLead ? assignLead.name : ''}
+        onClose={() => setAssignLead(null)}
+        onPick={onAssignPick}
+      />
     </SafeAreaView>
   );
 }
@@ -388,6 +465,33 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 19,
   },
+  assignedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(179,106,232,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(179,106,232,0.35)',
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  assignedText: { color: COLORS.violetLight, fontFamily: FONTS.bodySemiBold, fontSize: 13, flex: 1 },
+  unassignBtn: { padding: 4 },
+  assignBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255,95,176,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,95,176,0.3)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  assignBtnText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold, fontSize: 13 },
   emptyText: {
     color: COLORS.textMuted,
     fontFamily: FONTS.body,

@@ -11,6 +11,7 @@ export default function Root({ children }) {
         <meta name="description" content="Edmonton's trusted residential & commercial cleaning crew — quotes, services and contact in one app." />
         <meta name="theme-color" content="#0A0611" />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="stylesheet" href="/leaflet.css" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

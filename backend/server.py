@@ -758,6 +758,85 @@ async def delete_cleaner(cleaner_id: str, x_admin_password: Optional[str] = Head
     res = await db.cleaners.delete_one({"id": cleaner_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Cleaner not found")
+    await db.assignments.delete_many({"cleaner_id": cleaner_id})
+    return {"ok": True}
+
+
+# ---------------- Job Assignments (Dispatch) ----------------
+class AssignmentCreate(BaseModel):
+    quote_id: str
+    cleaner_id: str
+    customer_name: str
+    service_type: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    preferred_date: Optional[str] = None
+    message: Optional[str] = None
+
+
+class AssignmentDone(BaseModel):
+    cleaner_id: str
+    pin: str
+
+
+ASSIGNMENT_FIELDS = ("id", "quote_id", "cleaner_id", "cleaner_name", "customer_name", "service_type",
+                     "address", "phone", "preferred_date", "message", "status", "created_at")
+
+
+def _clean_assignment(doc):
+    return {k: doc.get(k) for k in ASSIGNMENT_FIELDS}
+
+
+@api_router.post("/assignments")
+async def create_assignment(payload: AssignmentCreate, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    cleaner = await db.cleaners.find_one({"id": payload.cleaner_id})
+    if not cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    doc = {
+        "id": str(uuid.uuid4()),
+        **payload.model_dump(),
+        "cleaner_name": cleaner["name"],
+        "status": "assigned",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.assignments.delete_many({"quote_id": payload.quote_id})
+    await db.assignments.insert_one(doc)
+    return _clean_assignment(doc)
+
+
+@api_router.get("/assignments")
+async def list_assignments(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    docs = await db.assignments.find({}).sort("created_at", -1).to_list(500)
+    return [_clean_assignment(d) for d in docs]
+
+
+@api_router.delete("/assignments/{assignment_id}")
+async def delete_assignment(assignment_id: str, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    res = await db.assignments.delete_one({"id": assignment_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return {"ok": True}
+
+
+@api_router.get("/cleaners/{cleaner_id}/jobs")
+async def cleaner_jobs(cleaner_id: str, x_cleaner_pin: Optional[str] = Header(default=None)):
+    _check_pin(x_cleaner_pin, await _get_cleaner_pin())
+    docs = await db.assignments.find({"cleaner_id": cleaner_id, "status": "assigned"}).sort("created_at", -1).to_list(100)
+    return [_clean_assignment(d) for d in docs]
+
+
+@api_router.post("/assignments/{assignment_id}/done")
+async def complete_assignment(assignment_id: str, payload: AssignmentDone):
+    _check_pin(payload.pin, await _get_cleaner_pin())
+    res = await db.assignments.update_one(
+        {"id": assignment_id, "cleaner_id": payload.cleaner_id},
+        {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Assignment not found")
     return {"ok": True}
 
 
