@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { fetchQuotes } from './api';
+import { fetchQuotes, HTTP_UNAUTHORIZED } from './api';
 
 const LAST_SEEN_KEY = 'tidyups_last_lead_seen';
+const POLLING_INTERVAL_MS = 60000;
+const ADMIN_PW_KEY = 'tidyups_admin_pw';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -52,7 +54,7 @@ export function useLeadAlerts() {
     let cancelled = false;
     const tick = async () => {
       try {
-        const pw = await AsyncStorage.getItem('tidyups_admin_pw');
+        const pw = await AsyncStorage.getItem(ADMIN_PW_KEY);
         if (!pw || cancelled) return;
         const quotes = await fetchQuotes(pw);
         if (cancelled || !Array.isArray(quotes) || quotes.length === 0) return;
@@ -66,15 +68,15 @@ export function useLeadAlerts() {
           await AsyncStorage.setItem(LAST_SEEN_KEY, newest.created_at);
         }
       } catch (e) {
-        if (e && e.code === 401) {
-          await AsyncStorage.removeItem('tidyups_admin_pw');
+        if (e && e.code === HTTP_UNAUTHORIZED) {
+          await AsyncStorage.removeItem(ADMIN_PW_KEY);
           return;
         }
         if (__DEV__) console.warn('Lead poll failed (will retry):', e.message || e);
       }
     };
     tick();
-    const timer = setInterval(tick, 60000);
+    const timer = setInterval(tick, POLLING_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);

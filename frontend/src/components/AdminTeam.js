@@ -42,6 +42,12 @@ async function confirmAsync(title, message) {
   });
 }
 
+function statusText(item, active) {
+  if (active) return 'Active now — sharing live location';
+  if (item.last_seen) return `Last seen ${timeAgo(item.last_seen)}`;
+  return 'Never shared location';
+}
+
 export default function AdminTeam({ password }) {
   const [cleaners, setCleaners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -196,22 +202,19 @@ export default function AdminTeam({ password }) {
       }
       renderItem={({ item, index }) => {
         const active = isActive(item);
+        const noLocation = item.lat == null;
         return (
           <View style={styles.row} testID={`admin-cleaner-row-${index}`}>
-            <View style={[styles.dot, { backgroundColor: active ? COLORS.success : COLORS.placeholder }]} />
-            <View style={{ flex: 1 }}>
+            <View style={[styles.dot, active ? styles.dotActive : styles.dotIdle]} />
+            <View style={styles.rowText}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={[styles.sub, active && { color: COLORS.success }]}>
-                {active
-                  ? 'Active now — sharing live location'
-                  : item.last_seen
-                  ? `Last seen ${timeAgo(item.last_seen)}`
-                  : 'Never shared location'}
+              <Text style={[styles.sub, active && styles.subActive]}>
+                {statusText(item, active)}
               </Text>
             </View>
             <TouchableOpacity
-              style={[styles.actionBtn, item.lat == null && { opacity: 0.35 }]}
-              disabled={item.lat == null}
+              style={[styles.actionBtn, noLocation && styles.actionBtnDisabled]}
+              disabled={noLocation}
               onPress={() => Linking.openURL(`https://maps.google.com/?q=${item.lat},${item.lng}`)}
               testID={`admin-cleaner-track-${index}`}
             >
@@ -224,7 +227,7 @@ export default function AdminTeam({ password }) {
         );
       }}
       ListEmptyComponent={
-        <View style={[styles.center, { paddingTop: 50 }]}>
+        <View style={[styles.center, styles.emptyPad]}>
           <MaterialCommunityIcons name="account-group-outline" size={44} color={COLORS.textMuted} />
           <Text style={styles.emptyText}>
             No cleaners yet. Share the PIN above with your team — they check in from the Contact tab.
@@ -314,8 +317,13 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   dot: { width: 11, height: 11, borderRadius: 6 },
+  dotActive: { backgroundColor: COLORS.success },
+  dotIdle: { backgroundColor: COLORS.placeholder },
+  rowText: { flex: 1 },
   name: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15 },
   sub: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2 },
+  subActive: { color: COLORS.success },
+  emptyPad: { paddingTop: 50 },
   actionBtn: {
     width: 36,
     height: 36,
@@ -326,6 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionBtnDisabled: { opacity: 0.35 },
   deleteBtn: { backgroundColor: 'rgba(248,113,113,0.08)', borderColor: 'rgba(248,113,113,0.25)' },
   emptyText: {
     color: COLORS.textMuted,

@@ -14,8 +14,11 @@ import AdminTeam from '../components/AdminTeam';
 import AdminHistory from '../components/AdminHistory';
 import CleanerPicker from '../components/CleanerPicker';
 import { requestLeadNotifPermission } from '../lib/leadAlerts';
+import { HTTP_UNAUTHORIZED } from '../lib/api';
 
 const PW_KEY = 'tidyups_admin_pw';
+const TOP_EDGES = ['top'];
+const LEADS_LIST_CONTENT_STYLE = { paddingHorizontal: 20, paddingBottom: 40, gap: 12 };
 const TABS = [
   { key: 'leads', icon: 'people', label: 'Leads' },
   { key: 'history', icon: 'time', label: 'History' },
@@ -23,6 +26,61 @@ const TABS = [
   { key: 'business', icon: 'storefront', label: 'Business' },
   { key: 'team', icon: 'navigate', label: 'Team' },
 ];
+
+function LeadsTab({ error, loadingLeads, leads, assignments, assignmentList, refreshing, storedPw, loadLeads, setRefreshing, setAssignLead, onUnassign }) {
+  if (loadingLeads) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={COLORS.pink} size="large" />
+      </View>
+    );
+  }
+  return (
+    <>
+      {error ? <Text style={styles.leadsError}>{error}</Text> : null}
+      <FlatList
+        data={leads}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <LeadCard item={item} assignment={assignments[item.id]} onAssign={setAssignLead} onUnassign={onUnassign} />
+        )}
+        ListHeaderComponent={<DailySummary leads={leads} assignmentList={assignmentList} />}
+        contentContainerStyle={LEADS_LIST_CONTENT_STYLE}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadLeads(storedPw, 'refresh');
+            }}
+            tintColor={COLORS.pink}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.leadsEmpty}>
+            <MaterialCommunityIcons name="inbox-outline" size={44} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>No leads yet — new quote requests will appear here.</Text>
+          </View>
+        }
+      />
+    </>
+  );
+}
+
+function renderTab(tab, ctx) {
+  switch (tab) {
+    case 'images':
+      return <AdminImages password={ctx.storedPw} />;
+    case 'business':
+      return <AdminBusiness password={ctx.storedPw} onPasswordChanged={ctx.onPasswordChanged} />;
+    case 'team':
+      return <AdminTeam password={ctx.storedPw} />;
+    case 'history':
+      return <AdminHistory password={ctx.storedPw} />;
+    default:
+      return <LeadsTab {...ctx} />;
+  }
+}
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -63,7 +121,7 @@ export default function AdminScreen() {
       setLeads(Array.isArray(data) ? data : []);
       setError('');
     } catch (e) {
-      if (e.code === 401) {
+      if (e.code === HTTP_UNAUTHORIZED) {
         await AsyncStorage.removeItem(PW_KEY);
         setStoredPw(null);
         setError('Session expired — please sign in again.');
@@ -130,7 +188,6 @@ export default function AdminScreen() {
     setStoredPw(null);
     setLeads([]);
   };
-
   const onAssignPick = async (cleaner) => {
     const lead = assignLead;
     setAssignLead(null);
@@ -192,7 +249,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Admin</Text>
@@ -200,7 +257,7 @@ export default function AdminScreen() {
             {leads.length} quote request{leads.length === 1 ? '' : 's'}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} onPress={onLogout} testID="admin-logout">
             <Ionicons name="log-out-outline" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
@@ -224,51 +281,20 @@ export default function AdminScreen() {
         ))}
       </View>
 
-      {tab === 'images' ? (
-        <AdminImages password={storedPw} />
-      ) : tab === 'business' ? (
-        <AdminBusiness password={storedPw} onPasswordChanged={onPasswordChanged} />
-      ) : tab === 'team' ? (
-        <AdminTeam password={storedPw} />
-      ) : tab === 'history' ? (
-        <AdminHistory password={storedPw} />
-      ) : (
-        <>
-          {error ? <Text style={[styles.error, { marginHorizontal: 20 }]}>{error}</Text> : null}
-
-          {loadingLeads ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={COLORS.pink} size="large" />
-            </View>
-          ) : (
-            <FlatList
-              data={leads}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <LeadCard item={item} assignment={assignments[item.id]} onAssign={setAssignLead} onUnassign={onUnassign} />
-              )}
-              ListHeaderComponent={<DailySummary leads={leads} assignmentList={assignmentList} />}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={() => {
-                    setRefreshing(true);
-                    loadLeads(storedPw, 'refresh');
-                  }}
-                  tintColor={COLORS.pink}
-                />
-              }
-              ListEmptyComponent={
-                <View style={[styles.center, { paddingTop: 80 }]}>
-                  <MaterialCommunityIcons name="inbox-outline" size={44} color={COLORS.textMuted} />
-                  <Text style={styles.emptyText}>No leads yet — new quote requests will appear here.</Text>
-                </View>
-              }
-            />
-          )}
-        </>
-      )}
+      {renderTab(tab, {
+        storedPw,
+        onPasswordChanged,
+        error,
+        loadingLeads,
+        leads,
+        assignments,
+        assignmentList,
+        refreshing,
+        loadLeads,
+        setRefreshing,
+        setAssignLead,
+        onUnassign,
+      })}
 
       <CleanerPicker
         visible={!!assignLead}
@@ -295,6 +321,20 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     textAlign: 'center',
   },
+  leadsError: {
+    color: COLORS.danger,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13.5,
+    backgroundColor: 'rgba(248,113,113,0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    alignSelf: 'stretch',
+    textAlign: 'center',
+  },
+  leadsEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  headerActions: { flexDirection: 'row', gap: 10 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

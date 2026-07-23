@@ -4,8 +4,52 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import { fetchCleaners } from '../lib/api';
 
+const ACTIVE_WINDOW_MS = 3 * 60000;
+const LIST_CONTENT_STYLE = { gap: 10, paddingBottom: 8 };
+
 function isActive(c) {
-  return c.sharing && c.last_seen && Date.now() - new Date(c.last_seen).getTime() < 3 * 60000;
+  return c.sharing && c.last_seen && Date.now() - new Date(c.last_seen).getTime() < ACTIVE_WINDOW_MS;
+}
+
+function PickerBody({ loading, error, cleaners, onPick }) {
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={COLORS.pink} />
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText} testID="cleaner-picker-error">{error}</Text>
+      </View>
+    );
+  }
+  return (
+    <FlatList
+      data={cleaners}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={LIST_CONTENT_STYLE}
+      renderItem={({ item, index }) => {
+        const live = isActive(item);
+        return (
+          <TouchableOpacity style={styles.row} onPress={() => onPick(item)} testID={`cleaner-pick-${index}`}>
+            <View style={[styles.dot, live ? styles.dotLive : styles.dotIdle]} />
+            <Text style={styles.name}>{item.name}</Text>
+            {live ? <Text style={styles.live}>live</Text> : null}
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        );
+      }}
+      ListEmptyComponent={
+        <View style={styles.center}>
+          <MaterialCommunityIcons name="account-group-outline" size={36} color={COLORS.textMuted} />
+          <Text style={styles.empty}>No cleaners yet — they check in from the Contact tab first.</Text>
+        </View>
+      }
+    />
+  );
 }
 
 export default function CleanerPicker({ visible, password, leadName, onClose, onPick }) {
@@ -36,35 +80,7 @@ export default function CleanerPicker({ visible, password, leadName, onClose, on
               <Ionicons name="close" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={COLORS.pink} />
-            </View>
-          ) : error ? (
-            <View style={styles.center}>
-              <Text style={styles.errorText} testID="cleaner-picker-error">{error}</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={cleaners}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity style={styles.row} onPress={() => onPick(item)} testID={`cleaner-pick-${index}`}>
-                  <View style={[styles.dot, { backgroundColor: isActive(item) ? COLORS.success : COLORS.placeholder }]} />
-                  <Text style={styles.name}>{item.name}</Text>
-                  {isActive(item) ? <Text style={styles.live}>live</Text> : null}
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.center}>
-                  <MaterialCommunityIcons name="account-group-outline" size={36} color={COLORS.textMuted} />
-                  <Text style={styles.empty}>No cleaners yet — they check in from the Contact tab first.</Text>
-                </View>
-              }
-            />
-          )}
+          <PickerBody loading={loading} error={error} cleaners={cleaners} onPick={onPick} />
         </View>
       </View>
     </Modal>
@@ -97,6 +113,8 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  dotLive: { backgroundColor: COLORS.success },
+  dotIdle: { backgroundColor: COLORS.placeholder },
   name: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15, flex: 1 },
   live: { color: COLORS.success, fontFamily: FONTS.bodyMedium, fontSize: 12 },
   empty: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13.5, textAlign: 'center', marginTop: 10, paddingHorizontal: 20 },

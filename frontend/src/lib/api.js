@@ -4,6 +4,8 @@ const RAW = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://bookmycleaning.xyz';
 export const BASE_URL = RAW.replace(/\/+$/, '');
 const API = `${BASE_URL}/api`;
 
+export const HTTP_UNAUTHORIZED = 401;
+
 // The app's OWN backend (image management). On web it is same-origin;
 // on native builds it comes from EXPO_PUBLIC_IMAGES_URL.
 function computeImagesBase() {
@@ -42,7 +44,7 @@ export async function uploadAppImage(asset, label, password) {
     headers: { 'X-Admin-Password': password },
     body: form,
   });
-  if (res.status === 401) throw new Error('Session expired \u2014 please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired \u2014 please sign in again.');
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`Upload failed (${res.status}). ${text.slice(0, 120)}`);
@@ -87,7 +89,7 @@ export async function adminLogin(password) {
     method: 'POST',
     headers: { 'X-Admin-Password': password },
   });
-  if (res.status === 401) throw new Error('Incorrect password');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Incorrect password');
   if (!res.ok) throw new Error('Login failed — please try again');
   return true;
 }
@@ -96,7 +98,7 @@ export async function fetchQuotes(password) {
   const res = await fetch(`${IMAGES_API}/leads`, {
     headers: { 'X-Admin-Password': password },
   });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const err = new Error('unauthorized');
     err.code = 401;
     throw err;
@@ -111,7 +113,7 @@ export async function setImageFit(imageId, fit, password) {
     headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fit }),
   });
-  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
   if (!res.ok) throw new Error('Update failed');
   return res.json();
 }
@@ -128,7 +130,7 @@ export async function updateAppSettings(payload, password) {
     headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
   if (!res.ok) throw new Error('Save failed');
   return res.json();
 }
@@ -148,7 +150,7 @@ export async function uploadLogo(asset, password) {
     headers: { 'X-Admin-Password': password },
     body: form,
   });
-  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
   if (!res.ok) throw new Error('Logo upload failed');
   return res.json();
 }
@@ -168,7 +170,7 @@ export async function checkinCleaner(name, pin) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, pin }),
   });
-  if (res.status === 401) throw new Error('Wrong PIN — ask the office for the current cleaner PIN.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Wrong PIN — ask the office for the current cleaner PIN.');
   if (!res.ok) throw new Error('Check-in failed — please try again.');
   return res.json();
 }
@@ -179,7 +181,7 @@ export async function sendCleanerLocation(cleanerId, pin, lat, lng) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cleaner_id: cleanerId, pin, lat, lng }),
   });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const e = new Error('PIN changed — please check in again.');
     e.code = 401;
     throw e;
@@ -199,7 +201,7 @@ export async function stopCleanerSharing(cleanerId, pin) {
 
 export async function fetchCleaners(password) {
   const res = await fetch(`${IMAGES_API}/cleaners`, { headers: { 'X-Admin-Password': password } });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const e = new Error('unauthorized');
     e.code = 401;
     throw e;
@@ -263,7 +265,7 @@ export async function deleteAssignment(assignmentId, password) {
 
 export async function fetchCleanerJobs(cleanerId, pin) {
   const res = await fetch(`${IMAGES_API}/cleaners/${cleanerId}/jobs`, { headers: { 'X-Cleaner-Pin': pin } });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const e = new Error('PIN changed — please check in again.');
     e.code = 401;
     throw e;
@@ -278,7 +280,7 @@ export async function changeAdminPassword(newPassword, password) {
     headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
     body: JSON.stringify({ new_password: newPassword }),
   });
-  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(text.includes('6 characters') ? 'Password must be at least 6 characters' : 'Password update failed');
@@ -301,7 +303,7 @@ export async function fetchAssignmentHistory(cleanerId, password) {
   const res = await fetch(`${IMAGES_API}/assignments/history${qs}`, {
     headers: { 'X-Admin-Password': password },
   });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const e = new Error('unauthorized');
     e.code = 401;
     throw e;
@@ -327,7 +329,7 @@ export async function uploadAssignmentPhoto(assignmentId, kind, cleanerId, pin, 
     method: 'POST',
     body: form,
   });
-  if (res.status === 401) {
+  if (res.status === HTTP_UNAUTHORIZED) {
     const e = new Error('PIN changed — please check in again.');
     e.code = 401;
     throw e;
@@ -353,7 +355,7 @@ export async function sendReviewRequest(assignmentId, password) {
     method: 'POST',
     headers: { 'X-Admin-Password': password },
   });
-  if (res.status === 401) throw new Error('Session expired — please sign in again.');
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     let detail = '';

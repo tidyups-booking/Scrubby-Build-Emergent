@@ -18,10 +18,16 @@ import { GradientButton } from './ui';
 import { useBusiness } from '../lib/business';
 
 const DEFAULT_LOGO = require('../../assets/images/logo.png');
+const SCROLL_CONTENT = { paddingHorizontal: 20, paddingBottom: 40 };
+const HOUR_DAY_STYLE = { flex: 1.3 };
+const HOUR_TIME_STYLE = { flex: 1 };
+const SMALL_BTN_START = { alignSelf: 'flex-start' };
+const SMALL_BTN_ADD_ROW = { alignSelf: 'flex-start', marginTop: 4 };
+const MIN_PW_LEN = 6;
 
 function Field({ label, value, onChangeText, placeholder, testID, keyboardType, secure }) {
   return (
-    <View style={{ marginBottom: 12 }}>
+    <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         style={styles.input}
@@ -36,6 +42,143 @@ function Field({ label, value, onChangeText, placeholder, testID, keyboardType, 
       />
     </View>
   );
+}
+
+function LogoCard({ logoUrl, logoBusy, onPickLogo, onResetLogo }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Logo</Text>
+      <View style={styles.logoRow}>
+        <Image
+          source={logoUrl ? { uri: resolveImageUrl(logoUrl) } : DEFAULT_LOGO}
+          style={styles.logoPreview}
+          resizeMode="contain"
+          testID="admin-logo-preview"
+        />
+        <View style={styles.logoActions}>
+          <TouchableOpacity style={styles.smallBtn} onPress={onPickLogo} disabled={logoBusy} testID="admin-logo-upload">
+            {logoBusy ? (
+              <ActivityIndicator size="small" color={COLORS.pink} />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={15} color={COLORS.textSoft} />
+            )}
+            <Text style={styles.smallBtnText}>Upload new logo</Text>
+          </TouchableOpacity>
+          {logoUrl ? (
+            <TouchableOpacity style={styles.smallBtn} onPress={onResetLogo} disabled={logoBusy} testID="admin-logo-reset">
+              <Ionicons name="refresh" size={15} color={COLORS.textSoft} />
+              <Text style={styles.smallBtnText}>Reset to default</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ContactDetailsCard({ form, set }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Contact Details</Text>
+      <Field label="Phone number" value={form.phone_display} onChangeText={set('phone_display')} placeholder="(780) 718-5092" testID="admin-biz-phone" keyboardType="phone-pad" />
+      <Field label="Toll-free (display)" value={form.tollfree_display} onChangeText={set('tollfree_display')} placeholder="(833) TIDY-UPS" testID="admin-biz-tollfree" />
+      <Field label="Toll-free (number)" value={form.tollfree_sub} onChangeText={set('tollfree_sub')} placeholder="+1 (833) 843-9877" testID="admin-biz-tollfree-num" keyboardType="phone-pad" />
+      <Field label="Street address" value={form.address} onChangeText={set('address')} placeholder="6510 Gateway Boulevard Suite 1020" testID="admin-biz-address" />
+      <Field label="City / province / postal" value={form.city_line} onChangeText={set('city_line')} placeholder="Edmonton, AB T6H 5Z5" testID="admin-biz-city" />
+      <Field label="Website" value={form.website} onChangeText={set('website')} placeholder="tidyupscleaning.com" testID="admin-biz-website" />
+    </View>
+  );
+}
+
+function ReviewRequestsCard({ form, set }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Review Requests</Text>
+      <Text style={styles.reviewHint}>
+        When a cleaner marks a job as done, we'll text this link to the customer so they can leave a Google review. Grab
+        your business's Google review URL from your Business Profile.
+      </Text>
+      <Field
+        label="Google review link"
+        value={form.review_url}
+        onChangeText={set('review_url')}
+        placeholder="https://g.page/r/..."
+        testID="admin-biz-review-url"
+      />
+    </View>
+  );
+}
+
+function HoursRow({ row, index, setHour, onRemove }) {
+  return (
+    <View style={styles.hourRow}>
+      <TextInput
+        style={[styles.input, HOUR_DAY_STYLE]}
+        value={row.day}
+        onChangeText={(v) => setHour(index, 'day', v)}
+        placeholder="Day"
+        placeholderTextColor={COLORS.placeholder}
+        testID={`admin-biz-hours-day-${index}`}
+      />
+      <TextInput
+        style={[styles.input, HOUR_TIME_STYLE]}
+        value={row.time}
+        onChangeText={(v) => setHour(index, 'time', v)}
+        placeholder="Time"
+        placeholderTextColor={COLORS.placeholder}
+        testID={`admin-biz-hours-time-${index}`}
+      />
+      <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(index)} testID={`admin-biz-hours-remove-${index}`}>
+        <Ionicons name="trash" size={15} color={COLORS.danger} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function BusinessHoursCard({ hours, setHour, onRemoveHour, onAddHour }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Business Hours</Text>
+      {hours.map((h, i) => (
+        <HoursRow key={h._key || `row-${i}`} row={h} index={i} setHour={setHour} onRemove={onRemoveHour} />
+      ))}
+      <TouchableOpacity style={[styles.smallBtn, SMALL_BTN_ADD_ROW]} onPress={onAddHour} testID="admin-biz-hours-add">
+        <Ionicons name="add" size={16} color={COLORS.textSoft} />
+        <Text style={styles.smallBtnText}>Add row</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function DispatchPasswordCard({ newPw, setNewPw, confirmPw, setConfirmPw, pwBusy, onChangePassword }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Dispatch Password</Text>
+      <Field label="New password" value={newPw} onChangeText={setNewPw} placeholder="At least 6 characters" testID="admin-pw-new" secure />
+      <Field label="Confirm new password" value={confirmPw} onChangeText={setConfirmPw} placeholder="Repeat new password" testID="admin-pw-confirm" secure />
+      <TouchableOpacity style={[styles.smallBtn, SMALL_BTN_START]} onPress={onChangePassword} disabled={pwBusy} testID="admin-pw-save">
+        {pwBusy ? (
+          <ActivityIndicator size="small" color={COLORS.pink} />
+        ) : (
+          <Ionicons name="key" size={15} color={COLORS.textSoft} />
+        )}
+        <Text style={styles.smallBtnText}>Update password</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function formToSettings(s) {
+  return {
+    phone_display: s.phone_display || '',
+    tollfree_display: s.tollfree_display || '',
+    tollfree_sub: s.tollfree_sub || '',
+    address: s.address || '',
+    city_line: s.city_line || '',
+    website: s.website || '',
+    review_url: s.review_url || '',
+    hours: (Array.isArray(s.hours) ? s.hours : []).map((h, i) => ({ ...h, _key: `row-${i}` })),
+  };
 }
 
 export default function AdminBusiness({ password, onPasswordChanged }) {
@@ -54,16 +197,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
   useEffect(() => {
     fetchAppSettings()
       .then((s) => {
-        setForm({
-          phone_display: s.phone_display || '',
-          tollfree_display: s.tollfree_display || '',
-          tollfree_sub: s.tollfree_sub || '',
-          address: s.address || '',
-          city_line: s.city_line || '',
-          website: s.website || '',
-          review_url: s.review_url || '',
-          hours: (Array.isArray(s.hours) ? s.hours : []).map((h, i) => ({ ...h, _key: `row-${i}` })),
-        });
+        setForm(formToSettings(s));
         setLogoUrl(s.logo_url || null);
       })
       .catch(() => setError('Failed to load business details'))
@@ -73,6 +207,10 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
   const setHour = (idx, key, value) =>
     setForm((f) => ({ ...f, hours: f.hours.map((h, i) => (i === idx ? { ...h, [key]: value } : h)) }));
+  const onRemoveHour = (idx) =>
+    setForm((f) => ({ ...f, hours: f.hours.filter((_, i) => i !== idx) }));
+  const onAddHour = () =>
+    setForm((f) => ({ ...f, hours: [...f.hours, { day: '', time: '', _key: `row-new-${Date.now()}` }] }));
 
   const onSave = async () => {
     setSaving(true);
@@ -134,7 +272,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
     setError('');
     setSuccess('');
     const pw1 = newPw.trim();
-    if (pw1.length < 6) {
+    if (pw1.length < MIN_PW_LEN) {
       setError('Password must be at least 6 characters.');
       return;
     }
@@ -165,112 +303,24 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Logo</Text>
-        <View style={styles.logoRow}>
-          <Image
-            source={logoUrl ? { uri: resolveImageUrl(logoUrl) } : DEFAULT_LOGO}
-            style={styles.logoPreview}
-            resizeMode="contain"
-            testID="admin-logo-preview"
-          />
-          <View style={{ flex: 1, gap: 8 }}>
-            <TouchableOpacity style={styles.smallBtn} onPress={onPickLogo} disabled={logoBusy} testID="admin-logo-upload">
-              {logoBusy ? (
-                <ActivityIndicator size="small" color={COLORS.pink} />
-              ) : (
-                <Ionicons name="cloud-upload-outline" size={15} color={COLORS.textSoft} />
-              )}
-              <Text style={styles.smallBtnText}>Upload new logo</Text>
-            </TouchableOpacity>
-            {logoUrl ? (
-              <TouchableOpacity style={styles.smallBtn} onPress={onResetLogo} disabled={logoBusy} testID="admin-logo-reset">
-                <Ionicons name="refresh" size={15} color={COLORS.textSoft} />
-                <Text style={styles.smallBtnText}>Reset to default</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contact Details</Text>
-        <Field label="Phone number" value={form.phone_display} onChangeText={set('phone_display')} placeholder="(780) 718-5092" testID="admin-biz-phone" keyboardType="phone-pad" />
-        <Field label="Toll-free (display)" value={form.tollfree_display} onChangeText={set('tollfree_display')} placeholder="(833) TIDY-UPS" testID="admin-biz-tollfree" />
-        <Field label="Toll-free (number)" value={form.tollfree_sub} onChangeText={set('tollfree_sub')} placeholder="+1 (833) 843-9877" testID="admin-biz-tollfree-num" keyboardType="phone-pad" />
-        <Field label="Street address" value={form.address} onChangeText={set('address')} placeholder="6510 Gateway Boulevard Suite 1020" testID="admin-biz-address" />
-        <Field label="City / province / postal" value={form.city_line} onChangeText={set('city_line')} placeholder="Edmonton, AB T6H 5Z5" testID="admin-biz-city" />
-        <Field label="Website" value={form.website} onChangeText={set('website')} placeholder="tidyupscleaning.com" testID="admin-biz-website" />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Review Requests</Text>
-        <Text style={styles.reviewHint}>
-          When a cleaner marks a job as done, we'll text this link to the customer so they can leave a Google review. Grab
-          your business's Google review URL from your Business Profile.
-        </Text>
-        <Field
-          label="Google review link"
-          value={form.review_url}
-          onChangeText={set('review_url')}
-          placeholder="https://g.page/r/..."
-          testID="admin-biz-review-url"
-        />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Business Hours</Text>
-        {form.hours.map((h, i) => (
-          <View key={h._key || `row-${i}`} style={styles.hourRow}>
-            <TextInput
-              style={[styles.input, { flex: 1.3 }]}
-              value={h.day}
-              onChangeText={(v) => setHour(i, 'day', v)}
-              placeholder="Day"
-              placeholderTextColor={COLORS.placeholder}
-              testID={`admin-biz-hours-day-${i}`}
-            />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={h.time}
-              onChangeText={(v) => setHour(i, 'time', v)}
-              placeholder="Time"
-              placeholderTextColor={COLORS.placeholder}
-              testID={`admin-biz-hours-time-${i}`}
-            />
-            <TouchableOpacity
-              style={styles.removeBtn}
-              onPress={() => setForm((f) => ({ ...f, hours: f.hours.filter((_, idx) => idx !== i) }))}
-              testID={`admin-biz-hours-remove-${i}`}
-            >
-              <Ionicons name="trash" size={15} color={COLORS.danger} />
-            </TouchableOpacity>
-          </View>
-        ))}
-        <TouchableOpacity
-          style={[styles.smallBtn, { alignSelf: 'flex-start', marginTop: 4 }]}
-          onPress={() => setForm((f) => ({ ...f, hours: [...f.hours, { day: '', time: '', _key: `row-new-${Date.now()}` }] }))}
-          testID="admin-biz-hours-add"
-        >
-          <Ionicons name="add" size={16} color={COLORS.textSoft} />
-          <Text style={styles.smallBtnText}>Add row</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Dispatch Password</Text>
-        <Field label="New password" value={newPw} onChangeText={setNewPw} placeholder="At least 6 characters" testID="admin-pw-new" secure />
-        <Field label="Confirm new password" value={confirmPw} onChangeText={setConfirmPw} placeholder="Repeat new password" testID="admin-pw-confirm" secure />
-        <TouchableOpacity style={[styles.smallBtn, { alignSelf: 'flex-start' }]} onPress={onChangePassword} disabled={pwBusy} testID="admin-pw-save">
-          {pwBusy ? (
-            <ActivityIndicator size="small" color={COLORS.pink} />
-          ) : (
-            <Ionicons name="key" size={15} color={COLORS.textSoft} />
-          )}
-          <Text style={styles.smallBtnText}>Update password</Text>
-        </TouchableOpacity>
-      </View>
+    <ScrollView contentContainerStyle={SCROLL_CONTENT} showsVerticalScrollIndicator={false}>
+      <LogoCard logoUrl={logoUrl} logoBusy={logoBusy} onPickLogo={onPickLogo} onResetLogo={onResetLogo} />
+      <ContactDetailsCard form={form} set={set} />
+      <ReviewRequestsCard form={form} set={set} />
+      <BusinessHoursCard
+        hours={form.hours}
+        setHour={setHour}
+        onRemoveHour={onRemoveHour}
+        onAddHour={onAddHour}
+      />
+      <DispatchPasswordCard
+        newPw={newPw}
+        setNewPw={setNewPw}
+        confirmPw={confirmPw}
+        setConfirmPw={setConfirmPw}
+        pwBusy={pwBusy}
+        onChangePassword={onChangePassword}
+      />
 
       {error ? (
         <Text style={styles.error} testID="admin-biz-error">
@@ -300,6 +350,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 15, marginBottom: 14 },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  logoActions: { flex: 1, gap: 8 },
   logoPreview: {
     width: 72,
     height: 72,
@@ -320,6 +371,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   smallBtnText: { color: COLORS.textSoft, fontFamily: FONTS.bodyMedium, fontSize: 13 },
+  field: { marginBottom: 12 },
   fieldLabel: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 12, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.bg,
