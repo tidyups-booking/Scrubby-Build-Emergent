@@ -59,6 +59,20 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   Fix in place: package.json start script is `CI=1 expo start --web --port 3000` (watching disabled).
   **NO HOT RELOAD on frontend** — after any frontend code change run `sudo supervisorctl restart frontend` and wait ~25s.
 
+## Done (Feb 24, 2026 — code-quality refactor #2 vs Code Quality Report Env e28e105d-bedd-45c6-bad8-782f1d891e1a)
+- Verified serial `pytest -n 0` runs 103/103 clean; oxlint reports 0 warnings / 0 errors across all 28 src files.
+- **False-positive fixes SKIPPED (correct behaviour)**: The static analyzer flagged `watchRef`/`AsyncStorage`/`HTTP_UNAUTHORIZED`/`ADMIN_PW_KEY`/`L`/`Platform`/local-vars as missing hook deps — none of these are valid deps. It also flagged `is None`/`is True/False` as identity-comparison anti-patterns — every flagged occurrence is the PEP-8 idiom. Console.warn statements already gated behind `if (__DEV__)`.
+- **Real refactors applied**:
+  - `_layout.js`: `STACK_SCREEN_OPTIONS`, `MODAL_OPTIONS`, `FONT_MAP`, `ROOT_STYLE` hoisted to module scope.
+  - `(tabs)/index.js`: `TOP_EDGES` + `H_SCROLL_CONTENT` constants (edges + horizontal carousel).
+  - `(tabs)/quote.js`: `TOP_EDGES` + `KAV_BEHAVIOR` constants + `styles.kavFill`.
+  - `components/AdminImages.js`: split into `UploadCard` + `ImageRow` + `RowActions` subcomponents; `LIST_CONTENT_STYLE` constant; inline `{flex:1}` + `{paddingTop:60}` moved to StyleSheet (`rowText`/`emptyPad`).
+  - `components/AdminTeam.js`: extracted `CleanerRow` + `PinCard`; `LIST_CONTENT_STYLE` + `MAP_PIN_ROW_STYLE` constants.
+- Iteration 16 outcome (bug_testing_agent runtime verification): backend 100%, frontend 90%, 103/103 pytest,
+  all 4 backend smoke curls pass, all admin/cleaner/business/history/team/home flows verified with runtime screenshots
+  under /app/test_reports/screenshots/iteration_16. Only "issue" flagged was LOW-priority selector-name
+  mismatch (`quote-submit` vs `quote-submit-btn` requested in the test spec) — not a regression; button works.
+
 ## Done (Feb 23, 2026 session — Job History + Photo Proof + Review Requests, iteration 12: 103/103 backend + frontend 100%)
 - **Job History (admin)** — new "History" tab (5th admin segment): browsable list of DONE assignments,
   filterable by cleaner (chip row). Each card shows customer, service, address, phone, completed timestamp,
