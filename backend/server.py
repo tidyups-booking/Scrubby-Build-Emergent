@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import UpdateOne
 import os
 import asyncio
 import logging
@@ -456,11 +457,15 @@ class ReorderPayload(BaseModel):
 @api_router.post("/site-images/reorder")
 async def reorder_site_images(payload: ReorderPayload, x_admin_password: Optional[str] = Header(default=None)):
     _check_admin(x_admin_password)
-    for idx, image_id in enumerate(payload.order):
-        await db.site_images.update_one(
+    operations = [
+        UpdateOne(
             {"id": image_id, "section": "gallery", "is_deleted": False},
             {"$set": {"order": idx}},
         )
+        for idx, image_id in enumerate(payload.order)
+    ]
+    if operations:
+        await db.site_images.bulk_write(operations)
     return {"ok": True}
 
 
@@ -571,11 +576,15 @@ async def delete_app_image(image_id: str, x_admin_password: Optional[str] = Head
 @api_router.post("/app-images/reorder")
 async def reorder_app_images(payload: ReorderPayload, x_admin_password: Optional[str] = Header(default=None)):
     _check_admin(x_admin_password)
-    for idx, image_id in enumerate(payload.order):
-        await db.app_images.update_one(
+    operations = [
+        UpdateOne(
             {"id": image_id, "is_deleted": False},
             {"$set": {"order": idx}},
         )
+        for idx, image_id in enumerate(payload.order)
+    ]
+    if operations:
+        await db.app_images.bulk_write(operations)
     return {"ok": True}
 
 
