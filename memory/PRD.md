@@ -59,6 +59,23 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   Fix in place: package.json start script is `CI=1 expo start --web --port 3000` (watching disabled).
   **NO HOT RELOAD on frontend** — after any frontend code change run `sudo supervisorctl restart frontend` and wait ~25s.
 
+## Done (Feb 24, 2026 — code-quality refactor #3, iteration 17: 100% backend + 100% frontend)
+- Added `GRADIENT_START` / `GRADIENT_END_H` / `GRADIENT_END_D` constants to `constants/theme.js` and replaced every
+  inline `<LinearGradient start={{...}} end={{...}} />` object in `ui.js`, `(tabs)/index.js`, `(tabs)/services.js`.
+- New memoized image sub-components (source object stable per url — eliminates `<Image source={{uri: ...}}/>` in
+  render bodies): `PhotoThumb` (CleanerJobs.js), `useMemo(source)` in AdminImages.js `ImageRow`, `PromoImage`
+  ((tabs)/index.js), `GalleryImage` ((tabs)/gallery.js). AdminHistory.js `PhotoImage` was already memoized in
+  refactor #1.
+- Extracted module-level style constants: `TOP_EDGES`, `HEADER_STYLE`, `STACK_STYLE`, `CARD_TEXT_STYLE`,
+  `LIST_CONTENT_STYLE`, `SECTION_MT_32`, `CTA_OUTLINE_STYLE`, `H_SCROLL_CONTENT`, `DISABLED_STYLE` — removed inline
+  `{ flex:1 }`, `{ gap:12 }`, `{ marginTop:32 }`, `{ marginBottom:12 }`, `{ color:... }` style objects across
+  Home / Services / Gallery / Contact / Cleaner / AdminHistory.
+- **Skipped as false positives**: "missing hook deps" that flag refs/module-imports/local-vars/globals (oxlint
+  reports 0/0); Python `is None`/`is True/False` (PEP-8 idiom); console.warn already `if (__DEV__)`-gated.
+- Iteration 17 verdict: backend 100%, frontend 100%, no critical / minor / UI / integration / design issues,
+  retest_needed=false, should_main_agent_self_test=false. 103/103 pytest serial. oxlint 0 warnings 0 errors
+  across all 31 src files.
+
 ## Done (Feb 24, 2026 — App Store submission prep)
 - **New static routes**: `/privacy` and `/terms` at bookscrubby.com now render actual policy pages (not the empty SPA shell). Apple's App Store crawler can now read them for the submission under review (App Store Connect ID `6792950350`, bundle `com.tidyups.cleaning`).
 - **LegalPage component**: reusable renderer with markdown-lite (**bold** and [text](url) supported), section headings, bullet lists, sticky back button, mailto/tel deep-links, and the standard "Back" nav (SafeAreaView + Expo Router `router.back() ?? replace('/')`).
