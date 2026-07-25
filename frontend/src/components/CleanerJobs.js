@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, Linking, ActivityIndicator, Platform, Alert, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,11 @@ async function confirmRemovePhoto() {
     ]);
   });
 }
+
+const PhotoThumb = React.memo(function PhotoThumb({ url }) {
+  const source = useMemo(() => ({ uri: resolveImageUrl(url) }), [url]);
+  return <Image source={source} style={styles.thumb} resizeMode="cover" />;
+});
 
 function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
   const [busy, setBusy] = useState(false);
@@ -89,7 +94,7 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
         <View style={styles.thumbRow}>
           {photos.map((p) => (
             <TouchableOpacity key={p.id} style={styles.thumbWrap} onLongPress={() => onRemove(p)} activeOpacity={0.85}>
-              <Image source={{ uri: resolveImageUrl(p.url) }} style={styles.thumb} resizeMode="cover" />
+              <PhotoThumb url={p.url} />
               <TouchableOpacity
                 style={styles.thumbRemove}
                 onPress={() => onRemove(p)}

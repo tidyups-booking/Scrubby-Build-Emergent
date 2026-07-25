@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -94,13 +94,10 @@ function RowActions({ index, total, onMove, onDelete }) {
 
 function ImageRow({ item, index, total, onDelete, onToggleFit, onMove }) {
   const showFull = item.fit === 'contain';
+  const source = useMemo(() => ({ uri: resolveImageUrl(item.url) }), [item.url]);
   return (
     <View style={styles.row} testID={`admin-image-row-${index}`}>
-      <Image
-        source={{ uri: resolveImageUrl(item.url) }}
-        style={styles.thumb}
-        resizeMode={showFull ? 'contain' : 'cover'}
-      />
+      <Image source={source} style={styles.thumb} resizeMode={showFull ? 'contain' : 'cover'} />
       <View style={styles.rowText}>
         <Text style={styles.rowLabel} numberOfLines={2}>
           {item.label || 'Untitled'}

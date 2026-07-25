@@ -3,14 +3,18 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, GRADIENT } from '../constants/theme';
 
+const GRADIENT_START = { x: 0, y: 0 };
+const GRADIENT_END = { x: 1, y: 0 };
+const DISABLED_STYLE = { opacity: 0.6 };
+
 export function GradientButton({ title, onPress, icon, loading, disabled, testID, style }) {
   return (
     <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.85} testID={testID} style={style}>
       <LinearGradient
         colors={GRADIENT}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.gradientBtn, (disabled || loading) && { opacity: 0.6 }]}
+        start={GRADIENT_START}
+        end={GRADIENT_END}
+        style={[styles.gradientBtn, (disabled || loading) && DISABLED_STYLE]}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -44,7 +48,6 @@ export function SectionHeader({ kicker, title, style }) {
     </View>
   );
 }
-
 export function Card({ children, style, testID }) {
   return (
     <View style={[styles.card, style]} testID={testID}>

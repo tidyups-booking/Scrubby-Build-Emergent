@@ -4,22 +4,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
+import { COLORS, FONTS, GRADIENT, GRADIENT_START, GRADIENT_END_D } from '../../constants/theme';
 import { SERVICES } from '../../constants/data';
 import { SectionHeader } from '../../components/ui';
+
+const TOP_EDGES = ['top'];
+const HEADER_STYLE = { marginTop: 14 };
+const STACK_STYLE = { gap: 12 };
+const CARD_TEXT_STYLE = { flex: 1 };
 
 export default function ServicesScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SectionHeader kicker="What we do" title="Our Services" style={{ marginTop: 14 }} />
+        <SectionHeader kicker="What we do" title="Our Services" style={HEADER_STYLE} />
         <Text style={styles.intro}>
           Tap any service to request your free, no-obligation quote.
         </Text>
 
-        <View style={{ gap: 12 }}>
+        <View style={STACK_STYLE}>
           {SERVICES.map((s, idx) => (
             <TouchableOpacity
               key={s.name}
@@ -28,10 +33,10 @@ export default function ServicesScreen() {
               style={styles.card}
               onPress={() => router.push({ pathname: '/quote', params: { service: s.name } })}
             >
-              <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
+              <LinearGradient colors={GRADIENT} start={GRADIENT_START} end={GRADIENT_END_D} style={styles.iconWrap}>
                 <MaterialCommunityIcons name={s.icon} size={22} color="#fff" />
               </LinearGradient>
-              <View style={{ flex: 1 }}>
+              <View style={CARD_TEXT_STYLE}>
                 <Text style={styles.name}>{s.name}</Text>
                 <Text style={styles.desc}>{s.desc}</Text>
               </View>

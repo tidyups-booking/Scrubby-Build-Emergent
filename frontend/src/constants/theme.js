@@ -19,6 +19,9 @@ export const COLORS = {
 
 export const GRADIENT = ['#FF8A3D', '#E0218A', '#8B2FC9'];
 export const GRADIENT_SOFT = ['rgba(255,138,61,0.16)', 'rgba(224,33,138,0.16)', 'rgba(139,47,201,0.16)'];
+export const GRADIENT_START = { x: 0, y: 0 };
+export const GRADIENT_END_H = { x: 1, y: 0 };
+export const GRADIENT_END_D = { x: 1, y: 1 };
 
 export const FONTS = {
   display: 'Sora_800ExtraBold',

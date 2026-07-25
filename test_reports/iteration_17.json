@@ -1,0 +1,40 @@
+{
+  "summary": "Refactor verification pass (iteration 17). Verified Tidyups Cleaning app (Expo Router PWA + FastAPI) after the code-quality refactor round 3 (theme gradient constants, memoized image sub-components, extracted style constants). Backend regression: 103/103 pytest passed (serial -n 0, ~29s). Backend smoke: /api/admin/login header-auth OK 200 / bad 401, /api/app-settings returns review_url key, /api/assignments/history 401 without X-Admin-Password / 200 with. Frontend runtime: Home renders bottom-cta-quote + promo-card-0..4; Services renders service-card-0..5 and tapping card 0 navigates to /quote?service=Home%20Cleaning; Gallery grid renders 5 imgs; Contact renders staff-login-link + cleaner-checkin-link + footer-privacy-link + footer-terms-link; /privacy renders privacy-page testID with heading; /terms renders terms-page testID with 'Last updated February 24, 2026'; Admin login with tidyups2026 shows all 5 tabs; Images tab shows admin-image-label/upload + admin-image-up-0/down-0/fit-0/delete-0; Business tab shows admin-biz-review-url + admin-biz-save; History tab shows history-cleaner-filter chip; Team tab shows admin-team-view-list/map + admin-pin-input/save (admin-cleaner-row-0 absent because DB currently has no cleaners — expected); Cleaner check-in with name + PIN 1234 → sharing screen with 'Start Sharing Location' and 'YOUR JOBS' section (no assignments seeded → 'No jobs assigned right now' — expected). Quote page shows quote-submit + 5 select-* fields; SelectField opens bottom sheet with options.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/pytest/iteration_17_pytest.log",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_admin_password_and_leads.py",
+    "/app/backend/tests/test_app_settings_and_pwa.py",
+    "/app/backend/tests/test_assignments.py",
+    "/app/backend/tests/test_history_photos_reviews.py",
+    "/app/backend/tests/test_cleaner_tracking.py",
+    "/app/backend/tests/test_site_images.py"
+  ],
+  "action_items": [
+    "OPTIONAL: If the review-request selector contract requires 'quote-submit-btn', rename the QuoteScreen testID in /app/frontend/src/app/(tabs)/quote.js line 223 from 'quote-submit' to 'quote-submit-btn' (or accept both). Current iteration 17 review request only says 'quote-submit button present' so no action strictly required.",
+    "OPTIONAL: The privacy page text is 'Last updated February 24, 2026' (full month), not the abbreviated 'Feb 24, 2026' listed in the review request features_to_test. Either update the review request wording or the page text; content is otherwise complete."
+  ],
+  "critical_code_review_comments": [
+    "Refactor constants correctly introduced: GRADIENT_START / GRADIENT_END_H / GRADIENT_END_D in /app/frontend/src/constants/theme.js and used across index.js, services.js, ui.js — no residual inline `start={...} end={...}` in the reviewed files (verified via grep).",
+    "PhotoThumb (CleanerJobs.js) + memoized ImageRow (AdminImages.js, AdminHistory.js) + GalleryImage (gallery.js) subcomponents confirmed by source review — inline `{ uri: ... }` sources removed from render bodies.",
+    "No functional regressions detected in any user flow. All previously-passing tests still pass."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_17.json",
+    "/app/test_reports/pytest/iteration_17_pytest.log",
+    "/app/test_reports/screenshots/iteration_17/*.png"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Admin password: tidyups2026 (via X-Admin-Password header). Cleaner PIN: 1234.",
+  "seed_data_creation": "None. No mutations performed on production data. Cleaner check-in used ephemeral name 'TEST_UI_Cleaner' + PIN 1234 (does not create DB cleaner records — only session localStorage).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend /api/admin/login uses header X-Admin-Password (NOT JSON body). Preview base URL is https://expo-book-cleaning.preview.emergentagent.com. Cleaner check-in page needs BOTH name and PIN inputs, not just PIN. Quote submit testID is 'quote-submit' (no -btn suffix). To test Book Again card, seed AsyncStorage key 'tidyups_last_quote' with an object containing name + service_type fields. To test admin-cleaner-row-0, first check-in at least one cleaner via /cleaner (name + PIN 1234); to test cleaner job/photo testIDs, seed an assignment for that cleaner.",
+  "rca_of_the_issue": "No new issues introduced by iteration 17 refactor. All flagged UI/backend items verified working. Pre-existing flake test_location_ok_sets_sharing_true passed in this serial run (103/103)."
+}

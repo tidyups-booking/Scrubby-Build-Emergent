@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, GRADIENT } from '../../constants/theme';
+import { COLORS, FONTS, GRADIENT, GRADIENT_START, GRADIENT_END_D } from '../../constants/theme';
 import { STATS, TRUST_BADGES, WHY_US, TESTIMONIALS } from '../../constants/data';
 import { fetchAppImages, resolveImageUrl } from '../../lib/api';
 import { getLastQuote } from '../../lib/lastQuote';
@@ -14,6 +14,13 @@ import { GradientButton, OutlineButton, SectionHeader, Card, Chip } from '../../
 const STAT_COLORS = [COLORS.gold, COLORS.pink, COLORS.violetLight];
 const TOP_EDGES = ['top'];
 const H_SCROLL_CONTENT = { gap: 12, paddingRight: 20 };
+const SECTION_MT_32 = { marginTop: 32 };
+const CTA_OUTLINE_STYLE = { backgroundColor: 'rgba(10,6,17,0.85)', borderColor: 'rgba(255,255,255,0.25)' };
+
+const PromoImage = React.memo(function PromoImage({ url, fit }) {
+  const source = React.useMemo(() => ({ uri: resolveImageUrl(url) }), [url]);
+  return <Image source={source} style={styles.promoImg} resizeMode={fit === 'contain' ? 'contain' : 'cover'} />;
+});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -52,7 +59,7 @@ export default function HomeScreen() {
         <View style={styles.hero}>
           <Text style={styles.heroTitle} testID="hero-title">
             Sparkling spaces,{'\n'}
-            <Text style={{ color: COLORS.pink }}>zero hassle.</Text>
+            <Text style={styles.pinkAccent}>zero hassle.</Text>
           </Text>
           <Text style={styles.heroSub}>
             Leave The Mess To Us! Edmonton's trusted residential & commercial cleaning crew — insured, eco-friendly and 5-star rated.
@@ -62,7 +69,7 @@ export default function HomeScreen() {
             testID="home-cta-quote"
             icon={<Ionicons name="sparkles" size={18} color="#fff" />}
             onPress={() => router.push('/quote')}
-            style={{ marginBottom: 12 }}
+            style={styles.mb12}
           />
           <OutlineButton
             title={`Call ${business.phoneDisplay}`}
@@ -80,10 +87,10 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/quote', params: { bookAgain: Date.now() } })}
             testID="book-again-card"
           >
-            <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bookAgainIcon}>
+            <LinearGradient colors={GRADIENT} start={GRADIENT_START} end={GRADIENT_END_D} style={styles.bookAgainIcon}>
               <Ionicons name="repeat" size={20} color="#fff" />
             </LinearGradient>
-            <View style={{ flex: 1 }}>
+            <View style={styles.whyContent}>
               <Text style={styles.bookAgainTitle}>Welcome back, {lastQuote.name.split(' ')[0]}!</Text>
               <Text style={styles.bookAgainSub} numberOfLines={1}>
                 Book your {lastQuote.service_type} again — details prefilled.
@@ -122,11 +129,11 @@ export default function HomeScreen() {
         {/* Promotions (dynamic, admin-managed) */}
         {promos.length > 0 ? (
           <View>
-            <SectionHeader kicker="Latest offers" title="Promotions" style={{ marginTop: 32 }} />
+            <SectionHeader kicker="Latest offers" title="Promotions" style={SECTION_MT_32} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={H_SCROLL_CONTENT}>
               {promos.map((img, idx) => (
                 <TouchableOpacity key={img.id} activeOpacity={0.9} onPress={() => router.push('/gallery')} testID={`promo-card-${idx}`}>
-                  <Image source={{ uri: resolveImageUrl(img.url) }} style={styles.promoImg} resizeMode={img.fit === 'contain' ? 'contain' : 'cover'} />
+                  <PromoImage url={img.url} fit={img.fit} />
                   {img.label ? (
                     <View style={styles.promoLabelWrap}>
                       <Text style={styles.promoLabel} numberOfLines={1}>
@@ -141,14 +148,14 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Why us */}
-        <SectionHeader kicker="Why Tidyups" title="Cleaning you can count on" style={{ marginTop: 32 }} />
-        <View style={{ gap: 12 }}>
+        <SectionHeader kicker="Why Tidyups" title="Cleaning you can count on" style={SECTION_MT_32} />
+        <View style={styles.whyStack}>
           {WHY_US.map((w) => (
             <Card key={w.title} style={styles.whyCard}>
-              <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.whyIcon}>
+              <LinearGradient colors={GRADIENT} start={GRADIENT_START} end={GRADIENT_END_D} style={styles.whyIcon}>
                 <MaterialCommunityIcons name={w.icon} size={20} color="#fff" />
               </LinearGradient>
-              <View style={{ flex: 1 }}>
+              <View style={styles.whyContent}>
                 <Text style={styles.whyTitle}>{w.title}</Text>
                 <Text style={styles.whyDesc}>{w.desc}</Text>
               </View>
@@ -157,7 +164,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Testimonials */}
-        <SectionHeader kicker="Reviews" title="What clients say" style={{ marginTop: 32 }} />
+        <SectionHeader kicker="Reviews" title="What clients say" style={SECTION_MT_32} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={H_SCROLL_CONTENT}>
           {TESTIMONIALS.map((t) => (
             <Card key={t.name} style={styles.reviewCard}>
@@ -168,20 +175,20 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.reviewText}>"{t.text}"</Text>
               <Text style={styles.reviewName}>
-                {t.name} <Text style={{ color: COLORS.textMuted, fontFamily: FONTS.body }}>· {t.area}</Text>
+                {t.name} <Text style={styles.reviewArea}>· {t.area}</Text>
               </Text>
             </Card>
           ))}
         </ScrollView>
 
         {/* Bottom CTA */}
-        <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaCard}>
+        <LinearGradient colors={GRADIENT} start={GRADIENT_START} end={GRADIENT_END_D} style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>Ready for a spotless space?</Text>
           <Text style={styles.ctaSub}>Free quotes. No obligation. Fast replies.</Text>
           <OutlineButton
             title="Request My Free Quote"
             testID="bottom-cta-quote"
-            style={{ backgroundColor: 'rgba(10,6,17,0.85)', borderColor: 'rgba(255,255,255,0.25)' }}
+            style={CTA_OUTLINE_STYLE}
             icon={<Ionicons name="arrow-forward" size={18} color="#fff" />}
             onPress={() => router.push('/quote')}
           />
@@ -293,4 +300,9 @@ const styles = StyleSheet.create({
   ctaCard: { borderRadius: 24, padding: 24, marginTop: 32 },
   ctaTitle: { color: '#fff', fontFamily: FONTS.display, fontSize: 22, marginBottom: 6 },
   ctaSub: { color: 'rgba(255,255,255,0.85)', fontFamily: FONTS.body, fontSize: 14, marginBottom: 18 },
+  whyContent: { flex: 1 },
+  whyStack: { gap: 12 },
+  reviewArea: { color: COLORS.textMuted, fontFamily: FONTS.body },
+  pinkAccent: { color: COLORS.pink },
+  mb12: { marginBottom: 12 },
 });

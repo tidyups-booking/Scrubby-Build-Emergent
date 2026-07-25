@@ -17,6 +17,15 @@ import { COLORS, FONTS } from '../../constants/theme';
 import { fetchAppImages, resolveImageUrl } from '../../lib/api';
 import { SectionHeader } from '../../components/ui';
 
+const TOP_EDGES = ['top'];
+const LIST_CONTENT_STYLE = { paddingHorizontal: 20, paddingBottom: 40, gap: 14 };
+const HEADER_STYLE = { marginTop: 14 };
+
+const GalleryImage = React.memo(function GalleryImage({ url, style, resizeMode }) {
+  const source = React.useMemo(() => ({ uri: resolveImageUrl(url) }), [url]);
+  return <Image source={source} style={style} resizeMode={resizeMode} />;
+});
+
 export default function GalleryScreen() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +51,7 @@ export default function GalleryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={TOP_EDGES}>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={COLORS.pink} size="large" />
@@ -52,10 +61,10 @@ export default function GalleryScreen() {
           data={images}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 14 }}
+          contentContainerStyle={LIST_CONTENT_STYLE}
           ListHeaderComponent={
             <View>
-              <SectionHeader kicker="Our work & offers" title="Gallery" style={{ marginTop: 14 }} />
+              <SectionHeader kicker="Our work & offers" title="Gallery" style={HEADER_STYLE} />
               <Text style={styles.intro}>Promos, our fleet and the Tidyups crew in action. Tap to view.</Text>
             </View>
           }
@@ -71,7 +80,7 @@ export default function GalleryScreen() {
           }
           renderItem={({ item, index }) => (
             <TouchableOpacity activeOpacity={0.9} onPress={() => setViewer(item)} testID={`gallery-card-${index}`}>
-              <Image source={{ uri: resolveImageUrl(item.url) }} style={styles.image} resizeMode={item.fit === 'contain' ? 'contain' : 'cover'} />
+              <GalleryImage url={item.url} style={styles.image} resizeMode={item.fit === 'contain' ? 'contain' : 'cover'} />
               {item.label ? (
                 <View style={styles.labelWrap}>
                   <Text style={styles.label} numberOfLines={1}>
@@ -97,7 +106,7 @@ export default function GalleryScreen() {
           </TouchableOpacity>
           {viewer ? (
             <>
-              <Image source={{ uri: resolveImageUrl(viewer.url) }} style={styles.viewerImage} resizeMode="contain" />
+              <GalleryImage url={viewer.url} style={styles.viewerImage} resizeMode="contain" />
               {viewer.label ? <Text style={styles.viewerLabel}>{viewer.label}</Text> : null}
             </>
           ) : null}
