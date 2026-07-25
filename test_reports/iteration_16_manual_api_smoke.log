@@ -1,0 +1,11 @@
+BASE=https://expo-book-cleaning.preview.emergentagent.com
+correct_pw
+200
+wrong_pw
+401
+app_settings
+{'has_review_url': True, 'review_url': ''}
+history_no_auth
+401
+history_auth
+{'status': 'list', 'count': 0}

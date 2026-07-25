@@ -1,0 +1,180 @@
+yarn run v1.22.22
+$ expo lint
+env: load .env
+env: export EXPO_PUBLIC_BACKEND_URL EXPO_PUBLIC_IMAGES_URL
+$ /app/frontend/node_modules/.bin/eslint /app/frontend/src --fix=false --cache=true --cache-location=/app/frontend/.expo/cache/eslint/
+
+/app/frontend/src/app/(tabs)/contact.js
+  34:70  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/app/frontend/src/app/(tabs)/index.js
+   58:43  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  169:47  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  169:56  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/frontend/src/app/(tabs)/quote.js
+   78:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  76 |   useEffect(() => {
+  77 |     if (service && SERVICE_OPTIONS.includes(service)) {
+> 78 |       setForm((f) => ({ ...f, service_type: service }));
+     |       ^^^^^^^ Avoid calling setState() directly within an effect
+  79 |       setSuccess(false);
+  80 |     }
+  81 |   }, [service]);  react-hooks/set-state-in-effect
+  173:69  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react/no-unescaped-entities
+
+/app/frontend/src/app/(tabs)/services.js
+  44:42  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  44:59  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/frontend/src/app/admin.js
+   8:95  warning  '/app/frontend/src/lib/api.js' imported multiple times  import/no-duplicates
+  17:35  warning  '/app/frontend/src/lib/api.js' imported multiple times  import/no-duplicates
+
+/app/frontend/src/app/cleaner.js
+  125:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  123 |   useEffect(() => {
+  124 |     if (!profile) return;
+> 125 |     loadJobs(profile);
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  126 |     const timer = setInterval(() => loadJobs(profile), JOBS_POLL_INTERVAL_MS);
+  127 |     return () => clearInterval(timer);
+  128 |   }, [profile, loadJobs]);  react-hooks/set-state-in-effect
+
+/app/frontend/src/components/AdminBusiness.js
+  98:47  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  99:22  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/app/frontend/src/components/AdminHistory.js
+   34:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  32 |   const [source, setSource] = useState({ uri: resolveImageUrl(url) });
+  33 |   useEffect(() => {
+> 34 |     setSource({ uri: resolveImageUrl(url) });
+     |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |   }, [url]);
+  36 |   return <Image source={source} style={style} resizeMode={resizeMode} />;
+  37 | });  react-hooks/set-state-in-effect
+  217:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  215 |
+  216 |   useEffect(() => {
+> 217 |     load(selectedCleaner);
+      |     ^^^^ Avoid calling setState() directly within an effect
+  218 |   }, [load, selectedCleaner]);
+  219 |
+  220 |   const onSendReview = async (assignment) => {                                                                                                       react-hooks/set-state-in-effect
+
+/app/frontend/src/components/AdminImages.js
+   60:109  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react/no-unescaped-entities
+   61:14   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react/no-unescaped-entities
+   61:31   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react/no-unescaped-entities
+   61:41   error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react/no-unescaped-entities
+  145:5    error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  143 |
+  144 |   useEffect(() => {
+> 145 |     load();
+      |     ^^^^ Avoid calling setState() directly within an effect
+  146 |   }, [load]);
+  147 |
+  148 |   const pickAndUpload = async () => {  react-hooks/set-state-in-effect
+
+/app/frontend/src/components/AdminTeam.js
+   88:50  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/no-unescaped-entities
+   88:67  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/no-unescaped-entities
+  144:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  142 |
+  143 |   useEffect(() => {
+> 144 |     load();
+      |     ^^^^ Avoid calling setState() directly within an effect
+  145 |     fetchStaffPin(password)
+  146 |       .then((d) => setPin(d.pin || ''))
+  147 |       .catch(() => {});  react-hooks/set-state-in-effect
+
+/app/frontend/src/components/CleanerJobs.js
+  151:60  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  151:74  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/frontend/src/components/CleanerPicker.js
+  62:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  60 |   useEffect(() => {
+  61 |     if (!visible) return;
+> 62 |     setLoading(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  63 |     setError('');
+  64 |     fetchCleaners(password)
+  65 |       .then((data) => setCleaners(Array.isArray(data) ? data : []))  react-hooks/set-state-in-effect
+
+/app/frontend/src/components/LeadCard.js
+  98:58  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  98:75  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/app/frontend/src/lib/business.js
+  38:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  36 |
+  37 |   useEffect(() => {
+> 38 |     refresh();
+     |     ^^^^^^^ Avoid calling setState() directly within an effect
+  39 |   }, [refresh]);
+  40 |
+  41 |   return <BusinessContext.Provider value={{ business, logoUrl, refresh }}>{children}</BusinessContext.Provider>;  react-hooks/set-state-in-effect
+
+✖ 29 problems (27 errors, 2 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
