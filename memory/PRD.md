@@ -59,6 +59,27 @@ Original build spec: /app/MOBILE_APP_SPEC.md.
   Fix in place: package.json start script is `CI=1 expo start --web --port 3000` (watching disabled).
   **NO HOT RELOAD on frontend** — after any frontend code change run `sudo supervisorctl restart frontend` and wait ~25s.
 
+## Done (Feb 24, 2026 — App Store submission prep)
+- **New static routes**: `/privacy` and `/terms` at bookscrubby.com now render actual policy pages (not the empty SPA shell). Apple's App Store crawler can now read them for the submission under review (App Store Connect ID `6792950350`, bundle `com.tidyups.cleaning`).
+- **LegalPage component**: reusable renderer with markdown-lite (**bold** and [text](url) supported), section headings, bullet lists, sticky back button, mailto/tel deep-links, and the standard "Back" nav (SafeAreaView + Expo Router `router.back() ?? replace('/')`).
+- **Privacy content** covers: who we are, what we collect (customer + cleaner), how we use it, who we share with (Twilio + Google Sheets + Emergent + MongoDB Atlas), location-only-when-tapping-Start disclosure, before/after photos, retention windows, PIPA/PIPEDA rights, children, security, changes.
+- **Terms content** covers: quote-vs-booking, payment/cancellation, access/safety, photo usage, satisfaction & re-clean guarantee, review SMS opt-out, liability cap, acceptable use, governing law (Alberta).
+- **Contact-tab footer**: added Privacy / Terms links + copyright line so the App Store reviewer can find them from the Home tab in 2 taps.
+- **app.json store metadata**:
+  - `ios.bundleIdentifier` = `com.tidyups.cleaning`, `buildNumber` = "1"
+  - `ios.associatedDomains` = `applinks:bookscrubby.com`
+  - `ios.config.usesNonExemptEncryption` = false + `ITSAppUsesNonExemptEncryption` = false (satisfies the "encryption" review question)
+  - `ios.infoPlist` usage strings: `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription`, `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription` — all written in plain language explaining why each permission is requested.
+  - `android.package` = `com.tidyups.cleaning`, `versionCode` = 1, `permissions` list (location + camera + media), `intentFilters` for App Links to `bookscrubby.com`.
+  - `expo-image-picker` plugin block with `cameraPermission` + `photosPermission` text.
+  - `extra`: `privacyPolicyUrl`, `termsOfServiceUrl`, `supportUrl` (pointers used by EAS submit templates).
+- **eas.json store submit scaffolding**:
+  - `submit.production.ios`: `ascAppId` set to **6792950350** (the App Store Connect ID user provided), plus placeholders `REPLACE_WITH_APPLE_ID_EMAIL` and `REPLACE_WITH_APPLE_TEAM_ID` for user to fill before `eas submit`.
+  - `submit.production.android`: `serviceAccountKeyPath` pointing to `./google-play-service-account.json` (user drops that in when ready), `track: production`, `releaseStatus: completed`.
+  - `build.production.android.buildType` = `app-bundle` (required by Google Play).
+  - `build.production.ios.resourceClass` = `m-medium`.
+- Verified: preview /privacy + /terms both return 200, oxlint 0/0, screenshot confirms the full Privacy Policy renders with headings and bullet lists.
+
 ## Done (Feb 24, 2026 — code-quality refactor #2 vs Code Quality Report Env e28e105d-bedd-45c6-bad8-782f1d891e1a)
 - Verified serial `pytest -n 0` runs 103/103 clean; oxlint reports 0 warnings / 0 errors across all 28 src files.
 - **False-positive fixes SKIPPED (correct behaviour)**: The static analyzer flagged `watchRef`/`AsyncStorage`/`HTTP_UNAUTHORIZED`/`ADMIN_PW_KEY`/`L`/`Platform`/local-vars as missing hook deps — none of these are valid deps. It also flagged `is None`/`is True/False` as identity-comparison anti-patterns — every flagged occurrence is the PEP-8 idiom. Console.warn statements already gated behind `if (__DEV__)`.

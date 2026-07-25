@@ -15,10 +15,31 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6792950350",
+        "appleId": "REPLACE_WITH_APPLE_ID_EMAIL",
+        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID",
+        "bundleIdentifier": "com.tidyups.cleaning",
+        "companyName": "Tidyups Cleaning Inc.",
+        "language": "en-US"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production",
+        "releaseStatus": "completed",
+        "changesNotSentForReview": false
+      }
+    }
   }
 }

@@ -43,6 +43,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="admin" options={MODAL_OPTIONS} />
           <Stack.Screen name="cleaner" options={MODAL_OPTIONS} />
+          <Stack.Screen name="privacy" />
+          <Stack.Screen name="terms" />
         </Stack>
       </View>
     </BusinessProvider>

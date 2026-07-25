@@ -80,10 +80,21 @@ export default function ContactScreen() {
           <Ionicons name="lock-closed" size={13} color={COLORS.textMuted} />
           <Text style={styles.staffLinkText}>Staff Login</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.staffLink, { marginTop: 0 }]} onPress={() => router.push('/cleaner')} testID="cleaner-checkin-link">
+        <TouchableOpacity style={[styles.staffLink, styles.staffLinkTight]} onPress={() => router.push('/cleaner')} testID="cleaner-checkin-link">
           <Ionicons name="navigate" size={13} color={COLORS.textMuted} />
           <Text style={styles.staffLinkText}>Cleaner Check-In</Text>
         </TouchableOpacity>
+
+        <View style={styles.legalRow}>
+          <TouchableOpacity onPress={() => router.push('/privacy')} testID="footer-privacy-link">
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSep}>·</Text>
+          <TouchableOpacity onPress={() => router.push('/terms')} testID="footer-terms-link">
+            <Text style={styles.legalLink}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.copyright}>© {new Date().getFullYear()} Tidyups Cleaning Inc.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -120,4 +131,29 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   staffLinkText: { color: COLORS.textMuted, fontFamily: FONTS.bodyMedium, fontSize: 13 },
+  staffLinkTight: { marginTop: 0 },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  legalLink: {
+    color: COLORS.textSoft,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  legalSep: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13 },
+  copyright: {
+    color: COLORS.textMuted,
+    fontFamily: FONTS.body,
+    fontSize: 11.5,
+    textAlign: 'center',
+    marginTop: 10,
+  },
 });
