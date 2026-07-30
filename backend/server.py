@@ -831,10 +831,8 @@ async def update_staff_pin(payload: PinUpdate, x_admin_password: Optional[str] =
     pin = payload.pin.strip()
     if not re.fullmatch(r"\d{4,8}", pin):
         raise HTTPException(status_code=400, detail="PIN must be 4-8 digits")
-    if pin == DEFAULT_CLEANER_PIN:
-        raise HTTPException(status_code=400, detail="Please pick a PIN that is not the default (1234).")
     await db.app_settings.update_one({"key": "staff"}, {"$set": {"cleaner_pin": pin}}, upsert=True)
-    return {"pin": pin, "is_default": False}
+    return {"pin": pin, "is_default": pin == DEFAULT_CLEANER_PIN}
 
 
 class CleanerCheckin(BaseModel):
