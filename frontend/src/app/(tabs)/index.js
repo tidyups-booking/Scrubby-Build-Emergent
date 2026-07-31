@@ -77,6 +77,21 @@ export default function HomeScreen() {
             icon={<Ionicons name="call" size={18} color={COLORS.pink} />}
             onPress={() => Linking.openURL(business.phoneTel)}
           />
+          <TouchableOpacity
+            style={styles.staffCta}
+            onPress={() => router.push('/admin')}
+            activeOpacity={0.85}
+            testID="home-staff-login"
+          >
+            <View style={styles.staffCtaIcon}>
+              <MaterialCommunityIcons name="shield-account" size={22} color={COLORS.violetLight} />
+            </View>
+            <View style={styles.staffCtaText}>
+              <Text style={styles.staffCtaTitle}>Staff Login</Text>
+              <Text style={styles.staffCtaSub}>Dispatch board · cleaner check-in · job history</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={18} color={COLORS.violetLight} />
+          </TouchableOpacity>
         </View>
 
         {/* Book Again (returning customers) */}
@@ -305,4 +320,26 @@ const styles = StyleSheet.create({
   reviewArea: { color: COLORS.textMuted, fontFamily: FONTS.body },
   pinkAccent: { color: COLORS.pink },
   mb12: { marginBottom: 12 },
+  staffCta: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(139,47,201,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(179,106,232,0.35)',
+  },
+  staffCtaIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(139,47,201,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staffCtaText: { flex: 1 },
+  staffCtaTitle: { color: COLORS.text, fontFamily: FONTS.heading, fontSize: 16 },
+  staffCtaSub: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginTop: 2 },
 });

@@ -1137,6 +1137,63 @@ async def put_client_notes(payload: ClientNotesUpdate, x_admin_password: Optiona
     return {"customer_name": payload.customer_name, "phone": payload.phone or "", "notes": notes, "updated_at": now_iso}
 
 
+class ClientMergeRequest(BaseModel):
+    from_name: str
+    from_phone: Optional[str] = ""
+    into_name: str
+    into_phone: Optional[str] = ""
+
+
+@api_router.post("/clients/merge")
+async def merge_client(payload: ClientMergeRequest, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    from_key = _client_key(payload.from_name, payload.from_phone)
+    into_key = _client_key(payload.into_name, payload.into_phone)
+    if from_key == into_key:
+        raise HTTPException(status_code=400, detail="Source and target are already the same client")
+
+    # Find all assignments matching the SOURCE (name+phone digits). Since we don't store
+    # the key on assignments, we scan candidates by canonical name and match digits-only phone.
+    from_name_lc = (payload.from_name or "").strip().lower()
+    from_phone_digits = re.sub(r"\D", "", payload.from_phone or "")
+    candidates = await db.assignments.find(
+        {"customer_name": {"$regex": f"^{re.escape(payload.from_name.strip())}$", "$options": "i"}}
+    ).to_list(1000)
+    moved = 0
+    for a in candidates:
+        adigits = re.sub(r"\D", "", a.get("phone") or "")
+        if adigits != from_phone_digits:
+            continue
+        await db.assignments.update_one(
+            {"id": a["id"]},
+            {"$set": {"customer_name": payload.into_name, "phone": payload.into_phone or ""}},
+        )
+        moved += 1
+
+    # Merge notes: concatenate source notes into target if both present.
+    src_notes_doc = await db.client_notes.find_one({"key": from_key})
+    tgt_notes_doc = await db.client_notes.find_one({"key": into_key})
+    src_notes = (src_notes_doc or {}).get("notes", "").strip()
+    tgt_notes = (tgt_notes_doc or {}).get("notes", "").strip()
+    combined = tgt_notes
+    if src_notes and src_notes not in tgt_notes:
+        combined = f"{tgt_notes}\n\n[merged from {payload.from_name}] {src_notes}".strip() if tgt_notes else src_notes
+    if combined:
+        await db.client_notes.update_one(
+            {"key": into_key},
+            {"$set": {
+                "key": into_key,
+                "customer_name": payload.into_name,
+                "phone": payload.into_phone or "",
+                "notes": combined,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+            upsert=True,
+        )
+    await db.client_notes.delete_one({"key": from_key})
+    return {"moved_assignments": moved, "into_key": into_key, "merged_notes": bool(src_notes and combined != tgt_notes)}
+
+
 # ---------------- Photo Proof ----------------
 @api_router.post("/assignments/{assignment_id}/photos")
 async def upload_assignment_photo(
@@ -1268,6 +1325,126 @@ async def send_review_request(assignment_id: str, x_admin_password: Optional[str
     return {"ok": True, "sent_via_sms": True, "review_sent_at": now, "review_url": review_url}
 
 
+# ---------------- Owner Nightly Digest ----------------
+def _digest_local_today_bounds():
+    """Return today's ISO-string bounds in UTC (start-of-day, next-day) for the owner's TZ.
+    Uses DIGEST_TZ_OFFSET_HOURS (default -7 = Edmonton/Mountain) to define "today"."""
+    try:
+        tz_off = int(os.environ.get("DIGEST_TZ_OFFSET_HOURS", "-7"))
+    except ValueError:
+        tz_off = -7
+    now_utc = datetime.now(timezone.utc)
+    local_now = now_utc + timedelta(hours=tz_off)
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_start = (local_start - timedelta(hours=tz_off))
+    utc_end = utc_start + timedelta(days=1)
+    return utc_start.isoformat(), utc_end.isoformat(), local_now.date().isoformat()
+
+
+async def _build_digest_body() -> str:
+    utc_start, utc_end, local_date = _digest_local_today_bounds()
+
+    leads_today = await db.quotes.count_documents({"created_at": {"$gte": utc_start, "$lt": utc_end}})
+    top_lead = await db.quotes.find_one(
+        {"created_at": {"$gte": utc_start, "$lt": utc_end}},
+        sort=[("created_at", -1)],
+    )
+
+    done_today = await db.assignments.count_documents({
+        "status": "done",
+        "completed_at": {"$gte": utc_start, "$lt": utc_end},
+    })
+    missed_reviews = await db.assignments.count_documents({
+        "status": "done",
+        "completed_at": {"$gte": utc_start, "$lt": utc_end},
+        "$or": [{"review_sent_at": None}, {"review_sent_at": {"$exists": False}}],
+    })
+
+    lines = [f"Scrubby daily digest · {local_date}"]
+    lines.append(f"• Leads today: {leads_today}")
+    if top_lead:
+        lines.append(f"  ↳ latest: {top_lead.get('name','?')} — {top_lead.get('service_type','?')}")
+    lines.append(f"• Jobs done: {done_today}")
+    lines.append(f"• Missed reviews: {missed_reviews}")
+    return "\n".join(lines)
+
+
+def _send_digest_sms(body: str) -> bool:
+    sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_FROM_NUMBER")
+    to = os.environ.get("DIGEST_TO_NUMBER") or os.environ.get("LEAD_ALERT_TO")
+    if not all([sid, token, from_number, to]):
+        logger.warning("Digest not sent — Twilio or DIGEST_TO_NUMBER missing")
+        return False
+    try:
+        TwilioClient(sid, token).messages.create(body=body, from_=from_number, to=to)
+        logger.info("Owner digest SMS sent to %s", to)
+        return True
+    except Exception as e:
+        logger.error("Digest SMS failed: %s", e)
+        return False
+
+
+async def _send_digest_now() -> dict:
+    body = await _build_digest_body()
+    sent = await run_in_threadpool(_send_digest_sms, body)
+    if sent:
+        await db.app_settings.update_one(
+            {"key": "digest_meta"},
+            {"$set": {"key": "digest_meta", "last_sent_local_date": _digest_local_today_bounds()[2],
+                      "last_sent_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    return {"sent": sent, "body": body}
+
+
+@api_router.post("/admin/digest/send-now")
+async def admin_digest_send_now(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    result = await _send_digest_now()
+    if not result["sent"]:
+        raise HTTPException(status_code=502, detail="Digest not sent — check DIGEST_TO_NUMBER and Twilio env vars.")
+    return result
+
+
+@api_router.get("/admin/digest/preview")
+async def admin_digest_preview(x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    body = await _build_digest_body()
+    return {"body": body, "to": os.environ.get("DIGEST_TO_NUMBER") or os.environ.get("LEAD_ALERT_TO") or ""}
+
+
+async def _digest_scheduler_loop():
+    """Fires once per day at DIGEST_HOUR (local, per DIGEST_TZ_OFFSET_HOURS). Idempotent via last_sent_local_date."""
+    try:
+        target_hour = int(os.environ.get("DIGEST_HOUR", "21"))  # 9pm default
+    except ValueError:
+        target_hour = 21
+    logger.info("Digest scheduler started (target hour=%s)", target_hour)
+    while True:
+        try:
+            try:
+                tz_off = int(os.environ.get("DIGEST_TZ_OFFSET_HOURS", "-7"))
+            except ValueError:
+                tz_off = -7
+            local_now = datetime.now(timezone.utc) + timedelta(hours=tz_off)
+            local_today = local_now.date().isoformat()
+            meta = await db.app_settings.find_one({"key": "digest_meta"}) or {}
+            already_sent_today = meta.get("last_sent_local_date") == local_today
+            if local_now.hour >= target_hour and not already_sent_today:
+                await _send_digest_now()
+            # sleep until the top of the next hour (max 1h)
+            next_wake = local_now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+            sleep_s = max(60, min(3600, int((next_wake - local_now).total_seconds())))
+            await asyncio.sleep(sleep_s)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error("Digest scheduler error: %s", e)
+            await asyncio.sleep(300)
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -1289,6 +1466,8 @@ async def on_startup():
     await seed_site_images()
     await seed_app_images()
     await _load_admin_password()
+    # Start the nightly owner digest scheduler in the background.
+    _schedule_bg(_digest_scheduler_loop(), name="digest-scheduler")
 
 
 @app.on_event("shutdown")
