@@ -11,10 +11,11 @@ import {
   ScrollView,
   Linking,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate } from '../lib/api';
+import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate, fetchClientNotes, saveClientNotes } from '../lib/api';
 
 function timeAgoShort(iso) {
   if (!iso) return '';
@@ -121,7 +122,86 @@ function groupByClient(items) {
   return groups;
 }
 
-function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId }) {
+function ClientNotesEditor({ customerName, phone, password }) {
+  const [notes, setNotes] = useState('');
+  const [initial, setInitial] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchClientNotes(customerName, phone, password)
+      .then((r) => {
+        if (cancelled) return;
+        setNotes(r.notes || '');
+        setInitial(r.notes || '');
+      })
+      .catch((e) => !cancelled && setError(e.message || 'Failed to load notes'))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, [customerName, phone, password]);
+
+  const dirty = notes !== initial;
+  const onSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const r = await saveClientNotes(customerName, phone, notes, password);
+      setInitial(r.notes || '');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.notesBlock} testID="client-notes-editor">
+      <View style={styles.notesHeader}>
+        <Ionicons name="document-text" size={13} color={COLORS.gold} />
+        <Text style={styles.notesLabel}>Notes for this client</Text>
+        {saved ? <Text style={styles.savedTag}>Saved</Text> : null}
+      </View>
+      {loading ? (
+        <ActivityIndicator size="small" color={COLORS.pink} style={styles.notesLoader} />
+      ) : (
+        <>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Pet allergies, gate code, preferred products, quirks…"
+            placeholderTextColor={COLORS.textMuted}
+            multiline
+            style={styles.notesInput}
+            testID="client-notes-input"
+          />
+          {error ? <Text style={styles.notesError}>{error}</Text> : null}
+          {dirty ? (
+            <TouchableOpacity
+              style={[styles.notesSaveBtn, saving && styles.reviewBtnBusy]}
+              onPress={onSave}
+              disabled={saving}
+              testID="client-notes-save"
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#0A0611" />
+              ) : (
+                <Text style={styles.notesSaveText}>Save notes</Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
+        </>
+      )}
+    </View>
+  );
+}
+
+function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId, password }) {
   const [expanded, setExpanded] = useState(true);
   const totalPhotos = group.visits.reduce((sum, v) => sum + (v.photos?.length || 0), 0);
   const lastVisit = group.visits[0];
@@ -151,6 +231,11 @@ function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId }) {
       ) : null}
       {expanded ? (
         <View style={styles.visitsList}>
+          <ClientNotesEditor
+            customerName={group.customer_name}
+            phone={group.phone}
+            password={password}
+          />
           {group.visits.map((v) => (
             <View key={v.id} style={styles.visitCard} testID={`history-visit-${v.id}`}>
               <View style={styles.cardTop}>
@@ -419,6 +504,7 @@ export default function AdminHistory({ password }) {
               onOpenPhoto={setOpenPhoto}
               onSendReview={onSendReview}
               sendingId={sendingId}
+              password={password}
             />
           ) : (
             <HistoryCard
@@ -648,4 +734,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   miniReviewBtnText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
+  notesBlock: {
+    backgroundColor: 'rgba(224,178,85,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(224,178,85,0.28)',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 4,
+  },
+  notesHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  notesLabel: { color: COLORS.gold, fontFamily: FONTS.bodySemiBold, fontSize: 12, flex: 1 },
+  savedTag: { color: COLORS.success, fontFamily: FONTS.bodySemiBold, fontSize: 11 },
+  notesLoader: { alignSelf: 'flex-start', marginTop: 2 },
+  notesInput: {
+    color: COLORS.text,
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    backgroundColor: COLORS.bg,
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  notesError: { color: COLORS.danger, fontFamily: FONTS.body, fontSize: 11.5, marginTop: 6 },
+  notesSaveBtn: {
+    backgroundColor: COLORS.gold,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  notesSaveText: { color: '#0A0611', fontFamily: FONTS.bodySemiBold, fontSize: 12.5 },
 });

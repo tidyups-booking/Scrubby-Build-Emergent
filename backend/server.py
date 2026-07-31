@@ -932,14 +932,36 @@ ASSIGNMENT_FIELDS = ("id", "quote_id", "cleaner_id", "cleaner_name", "customer_n
                      "status_updated_at", "completed_at", "photos", "review_sent_at")
 
 
-def _clean_assignment(doc):
+def _client_key(name: Optional[str], phone: Optional[str]) -> str:
+    """Stable per-customer key: lowercased trimmed name + digits-only phone."""
+    n = (name or "").strip().lower()
+    p = re.sub(r"\D", "", phone or "")
+    return f"{n}|{p}"
+
+
+async def _load_client_notes_map(assignments: List[dict]) -> dict:
+    """Fetch client notes for a batch of assignments in one query, keyed by _client_key."""
+    keys = list({_client_key(a.get("customer_name"), a.get("phone")) for a in assignments})
+    if not keys:
+        return {}
+    docs = await db.client_notes.find({"key": {"$in": keys}}, {"_id": 0}).to_list(len(keys))
+    return {d["key"]: d.get("notes", "") for d in docs}
+
+
+def _clean_assignment(doc, notes: str = ""):
     out = {k: doc.get(k) for k in ASSIGNMENT_FIELDS}
     photos = out.get("photos") or []
     # Attach a short-lived signature so admin/cleaner UIs can render proof photos over <img>.
     out["photos"] = [
         {**p, "url": _apply_proof_signature(p.get("url", ""))} for p in photos
     ]
+    out["client_notes"] = notes
     return out
+
+
+async def _clean_assignments_with_notes(docs: List[dict]) -> List[dict]:
+    notes_map = await _load_client_notes_map(docs)
+    return [_clean_assignment(d, notes_map.get(_client_key(d.get("customer_name"), d.get("phone")), "")) for d in docs]
 
 
 @api_router.post("/assignments")
@@ -957,14 +979,15 @@ async def create_assignment(payload: AssignmentCreate, x_admin_password: Optiona
     }
     await db.assignments.delete_many({"quote_id": payload.quote_id, "status": {"$ne": "done"}})
     await db.assignments.insert_one(doc)
-    return _clean_assignment(doc)
+    notes_map = await _load_client_notes_map([doc])
+    return _clean_assignment(doc, notes_map.get(_client_key(doc.get("customer_name"), doc.get("phone")), ""))
 
 
 @api_router.get("/assignments")
 async def list_assignments(x_admin_password: Optional[str] = Header(default=None)):
     _check_admin(x_admin_password)
     docs = await db.assignments.find({}).sort("created_at", -1).to_list(500)
-    return [_clean_assignment(d) for d in docs]
+    return await _clean_assignments_with_notes(docs)
 
 
 @api_router.delete("/assignments/{assignment_id}")
@@ -982,7 +1005,7 @@ async def cleaner_jobs(cleaner_id: str, x_cleaner_pin: Optional[str] = Header(de
     docs = await db.assignments.find(
         {"cleaner_id": cleaner_id, "status": {"$in": ["assigned", "on_the_way", "cleaning"]}}
     ).sort("created_at", -1).to_list(100)
-    return [_clean_assignment(d) for d in docs]
+    return await _clean_assignments_with_notes(docs)
 
 
 class AssignmentStatusUpdate(BaseModel):
@@ -1040,7 +1063,53 @@ async def assignments_history(
     if cleaner_id:
         query["cleaner_id"] = cleaner_id
     docs = await db.assignments.find(query).sort("completed_at", -1).to_list(limit)
-    return [_clean_assignment(d) for d in docs]
+    return await _clean_assignments_with_notes(docs)
+
+
+# ---------------- Client Notes ----------------
+class ClientNotesUpdate(BaseModel):
+    customer_name: str
+    phone: Optional[str] = ""
+    notes: str
+
+
+@api_router.get("/clients/notes")
+async def get_client_notes(
+    customer_name: str,
+    phone: Optional[str] = "",
+    x_admin_password: Optional[str] = Header(default=None),
+):
+    _check_admin(x_admin_password)
+    key = _client_key(customer_name, phone)
+    doc = await db.client_notes.find_one({"key": key}, {"_id": 0})
+    return {
+        "customer_name": customer_name,
+        "phone": phone or "",
+        "notes": (doc or {}).get("notes", ""),
+        "updated_at": (doc or {}).get("updated_at"),
+    }
+
+
+@api_router.put("/clients/notes")
+async def put_client_notes(payload: ClientNotesUpdate, x_admin_password: Optional[str] = Header(default=None)):
+    _check_admin(x_admin_password)
+    key = _client_key(payload.customer_name, payload.phone)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    notes = (payload.notes or "").strip()
+    if len(notes) > 2000:
+        raise HTTPException(status_code=400, detail="Notes too long (max 2000 characters)")
+    await db.client_notes.update_one(
+        {"key": key},
+        {"$set": {
+            "key": key,
+            "customer_name": payload.customer_name,
+            "phone": payload.phone or "",
+            "notes": notes,
+            "updated_at": now_iso,
+        }},
+        upsert=True,
+    )
+    return {"customer_name": payload.customer_name, "phone": payload.phone or "", "notes": notes, "updated_at": now_iso}
 
 
 # ---------------- Photo Proof ----------------

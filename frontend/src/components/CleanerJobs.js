@@ -43,31 +43,55 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
           return;
         }
       }
-      const result = Platform.OS === 'web'
-        ? await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.8,
-            allowsMultipleSelection: true,
-            selectionLimit: 10,
-          })
-        : await ImagePicker.launchCameraAsync({ quality: 0.8 });
-      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      if (Platform.OS === 'web') {
+        // Web: multi-select gallery, batch upload
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.8,
+          allowsMultipleSelection: true,
+          selectionLimit: 50,
+        });
+        if (result.canceled || !result.assets || result.assets.length === 0) return;
+        setBusy(true);
+        const uploaded = [];
+        for (const asset of result.assets) {
+          try {
+            const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
+            uploaded.push(photo);
+          } catch (e) {
+            setError(e.message || 'One or more photos failed to upload');
+          }
+        }
+        if (uploaded.length) {
+          onJobChange({ ...job, photos: [...(job.photos || []), ...uploaded] });
+        }
+        setBusy(false);
+        return;
+      }
+      // Native: rapid-fire mode — camera re-opens after every shot until cleaner cancels.
       setBusy(true);
-      const uploaded = [];
-      for (const asset of result.assets) {
+      let running = true;
+      let currentPhotos = job.photos || [];
+      const MAX_BURST = 50;
+      let count = 0;
+      while (running && count < MAX_BURST) {
+        const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+        if (result.canceled || !result.assets || !result.assets[0]) {
+          running = false;
+          break;
+        }
+        count += 1;
         try {
-          const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
-          uploaded.push(photo);
+          const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, result.assets[0]);
+          currentPhotos = [...currentPhotos, photo];
+          onJobChange({ ...job, photos: currentPhotos });
         } catch (e) {
-          setError(e.message || 'One or more photos failed to upload');
+          setError(e.message || 'One photo failed to upload — keep shooting');
         }
       }
-      if (uploaded.length) {
-        onJobChange({ ...job, photos: [...(job.photos || []), ...uploaded] });
-      }
+      setBusy(false);
     } catch (e) {
       setError(e.message || 'Photo upload failed');
-    } finally {
       setBusy(false);
     }
   };
@@ -183,6 +207,15 @@ export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setE
               </View>
             ) : null}
             {job.message ? <Text style={styles.jobMessage}>"{job.message}"</Text> : null}
+            {job.client_notes ? (
+              <View style={styles.clientNotesBox} testID={`cleaner-client-notes-${index}`}>
+                <View style={styles.clientNotesHead}>
+                  <Ionicons name="bookmark" size={12} color={COLORS.gold} />
+                  <Text style={styles.clientNotesTitle}>Client notes</Text>
+                </View>
+                <Text style={styles.clientNotesText}>{job.client_notes}</Text>
+              </View>
+            ) : null}
             {cleaner ? (
               <>
                 <PhotoRow job={job} kind="before" cleaner={cleaner} onJobChange={onJobChange} setError={setError} />
@@ -243,6 +276,23 @@ const styles = StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   jobRowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13.5, flex: 1 },
   jobMessage: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13, fontStyle: 'italic', marginTop: 4, lineHeight: 18 },
+  clientNotesBox: {
+    marginTop: 10,
+    backgroundColor: 'rgba(224,178,85,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(224,178,85,0.3)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  clientNotesHead: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
+  clientNotesTitle: {
+    color: COLORS.gold,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 11,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  clientNotesText: { color: COLORS.text, fontFamily: FONTS.body, fontSize: 13, lineHeight: 18 },
   photoBlock: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
   photoHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   photoLabel: { color: COLORS.textSoft, fontFamily: FONTS.bodySemiBold, fontSize: 12.5, letterSpacing: 0.5 },
