@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate, fetchClientNotes, saveClientNotes } from '../lib/api';
+import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate, fetchClientNotes, saveClientNotes, mergeClients } from '../lib/api';
 
 function timeAgoShort(iso) {
   if (!iso) return '';
@@ -201,8 +201,56 @@ function ClientNotesEditor({ customerName, phone, password }) {
   );
 }
 
-function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId, password }) {
+function MergePickerModal({ visible, sourceGroup, allGroups, onCancel, onPick }) {
+  if (!visible) return null;
+  const targets = (allGroups || []).filter((g) => g.key !== sourceGroup?.key);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.viewerBackdrop}>
+        <TouchableOpacity style={styles.viewerClose} onPress={onCancel} testID="merge-picker-close">
+          <Ionicons name="close" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.viewerTitle}>
+          Merge "{sourceGroup?.customer_name}" into…
+        </Text>
+        <Text style={styles.mergeHint}>
+          All {sourceGroup?.visits?.length || 0} visits + notes will move to the client you pick.
+          Great for cleaning up duplicate spellings.
+        </Text>
+        <ScrollView contentContainerStyle={styles.viewerScroll} showsVerticalScrollIndicator={false}>
+          {targets.length === 0 ? (
+            <Text style={styles.viewerEmpty}>No other clients to merge into yet.</Text>
+          ) : (
+            targets.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                style={styles.mergeTargetRow}
+                onPress={() => onPick(t)}
+                testID={`merge-target-${t.key}`}
+                activeOpacity={0.85}
+              >
+                <View style={styles.mergeTargetTextWrap}>
+                  <Text style={styles.customer}>{t.customer_name}</Text>
+                  <Text style={styles.clientSubtitle}>
+                    {t.visits.length} visit{t.visits.length === 1 ? '' : 's'}
+                    {t.phone ? ` · ${t.phone}` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={COLORS.pink} />
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId, password, allGroups, onMergeDone }) {
   const [expanded, setExpanded] = useState(true);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState('');
   const totalPhotos = group.visits.reduce((sum, v) => sum + (v.photos?.length || 0), 0);
   const lastVisit = group.visits[0];
   const telHref = `tel:${(group.phone || '').replace(/[^+\d]/g, '')}`;
@@ -277,8 +325,48 @@ function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId, password
               </TouchableOpacity>
             </View>
           ))}
+          <View style={styles.mergeRow}>
+            <TouchableOpacity
+              style={styles.mergeBtn}
+              onPress={() => { setMergeError(''); setMergeOpen(true); }}
+              testID={`history-client-merge-${group.key}`}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="git-merge" size={13} color={COLORS.violetLight} />
+              <Text style={styles.mergeBtnText}>Merge into another client…</Text>
+            </TouchableOpacity>
+            {mergeError ? <Text style={styles.notesError}>{mergeError}</Text> : null}
+          </View>
         </View>
       ) : null}
+      <MergePickerModal
+        visible={mergeOpen}
+        sourceGroup={group}
+        allGroups={allGroups}
+        onCancel={() => setMergeOpen(false)}
+        onPick={async (target) => {
+          if (merging) return;
+          setMerging(true);
+          setMergeError('');
+          try {
+            await mergeClients(
+              {
+                fromName: group.customer_name,
+                fromPhone: group.phone,
+                intoName: target.customer_name,
+                intoPhone: target.phone,
+              },
+              password,
+            );
+            setMergeOpen(false);
+            if (onMergeDone) onMergeDone();
+          } catch (e) {
+            setMergeError(e.message || 'Merge failed');
+          } finally {
+            setMerging(false);
+          }
+        }}
+      />
     </View>
   );
 }
@@ -505,6 +593,8 @@ export default function AdminHistory({ password }) {
               onSendReview={onSendReview}
               sendingId={sendingId}
               password={password}
+              allGroups={groups}
+              onMergeDone={() => load(selectedCleaner)}
             />
           ) : (
             <HistoryCard
@@ -734,6 +824,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   miniReviewBtnText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
+  mergeRow: { marginTop: 4 },
+  mergeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(179,106,232,0.35)',
+    backgroundColor: 'rgba(139,47,201,0.1)',
+    borderRadius: 10,
+    paddingVertical: 8,
+  },
+  mergeBtnText: { color: COLORS.violetLight, fontFamily: FONTS.bodySemiBold, fontSize: 12 },
+  mergeHint: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginBottom: 10, lineHeight: 17 },
+  mergeTargetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  mergeTargetTextWrap: { flex: 1 },
   notesBlock: {
     backgroundColor: 'rgba(224,178,85,0.08)',
     borderWidth: 1,

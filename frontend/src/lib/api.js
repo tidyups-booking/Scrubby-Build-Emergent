@@ -401,6 +401,52 @@ export async function saveClientNotes(customerName, phone, notes, password) {
   return res.json();
 }
 
+export async function mergeClients({ fromName, fromPhone, intoName, intoPhone }, password) {
+  const res = await fetch(`${IMAGES_API}/clients/merge`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from_name: fromName,
+      from_phone: fromPhone || '',
+      into_name: intoName,
+      into_phone: intoPhone || '',
+    }),
+  });
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let detail = '';
+    try { detail = JSON.parse(text).detail || ''; } catch { detail = text.slice(0, 120); }
+    throw new Error(detail || 'Merge failed');
+  }
+  return res.json();
+}
+
+export async function previewOwnerDigest(password) {
+  const res = await fetch(`${IMAGES_API}/admin/digest/preview`, {
+    headers: { 'X-Admin-Password': password },
+  });
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) throw new Error('Failed to load digest preview');
+  return res.json();
+}
+
+export async function sendOwnerDigestNow(password) {
+  const res = await fetch(`${IMAGES_API}/admin/digest/send-now`, {
+    method: 'POST',
+    headers: { 'X-Admin-Password': password },
+  });
+  if (res.status === HTTP_UNAUTHORIZED) throw new Error('Session expired — please sign in again.');
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let detail = '';
+    try { detail = JSON.parse(text).detail || ''; } catch { detail = text.slice(0, 120); }
+    throw new Error(detail || 'Digest send failed');
+  }
+  return res.json();
+}
+
+
 export function formatDate(iso) {
   try {
     const d = new Date(iso);
