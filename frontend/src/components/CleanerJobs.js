@@ -155,7 +155,7 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
   );
 }
 
-export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setError }) {
+export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setError, requirePhotos }) {
   const [busyJobId, setBusyJobId] = useState(null);
   const handleStatus = async (job, key) => {
     if (busyJobId) return;
@@ -174,7 +174,12 @@ export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setE
           No jobs assigned right now — check back later.
         </Text>
       ) : (
-        jobs.map((job, index) => (
+        jobs.map((job, index) => {
+          const photos = job.photos || [];
+          const hasBefore = photos.some((p) => p.kind === 'before');
+          const hasAfter = photos.some((p) => p.kind === 'after');
+          const doneBlocked = requirePhotos && !(hasBefore && hasAfter);
+          return (
           <View key={job.id} style={styles.jobCard} testID={`cleaner-job-${index}`}>
             <View style={styles.jobTop}>
               <Text style={styles.jobName}>{job.customer_name}</Text>
@@ -225,7 +230,9 @@ export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setE
             <View style={styles.statusRow}>
               {JOB_STEPS.map((s) => {
                 const active = job.status === s.key;
-                const disabled = busyJobId === job.id;
+                const isDoneStep = s.key === 'done';
+                const blocked = isDoneStep && doneBlocked;
+                const disabled = busyJobId === job.id || blocked;
                 return (
                   <TouchableOpacity
                     key={s.key}
@@ -234,18 +241,28 @@ export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setE
                     disabled={disabled}
                     testID={`cleaner-job-${s.key}-${index}`}
                   >
-                    {disabled && s.key === 'done' ? (
+                    {busyJobId === job.id && s.key === 'done' ? (
                       <ActivityIndicator size="small" color={active ? '#0A0611' : COLORS.textSoft} />
                     ) : (
-                      <Ionicons name={s.icon} size={14} color={active ? '#0A0611' : COLORS.textSoft} />
+                      <Ionicons
+                        name={blocked ? 'lock-closed' : s.icon}
+                        size={14}
+                        color={active ? '#0A0611' : COLORS.textSoft}
+                      />
                     )}
                     <Text style={[styles.statusBtnText, active && styles.statusBtnTextActive]}>{s.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
+            {doneBlocked ? (
+              <Text style={styles.doneHint} testID={`cleaner-done-hint-${index}`}>
+                📸 Add {!hasBefore ? 'a before' : ''}{!hasBefore && !hasAfter ? ' and ' : ''}{!hasAfter ? 'an after' : ''} photo above to unlock Done.
+              </Text>
+            ) : null}
           </View>
-        ))
+          );
+        })
       )}
     </View>
   );
@@ -351,4 +368,12 @@ const styles = StyleSheet.create({
   jobAddressText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold },
   statusBtnText: { color: COLORS.textSoft, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
   statusBtnTextActive: { color: '#0A0611' },
+  doneHint: {
+    marginTop: 8,
+    color: COLORS.gold,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
 });

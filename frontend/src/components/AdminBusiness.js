@@ -109,6 +109,35 @@ function ReviewRequestsCard({ form, set }) {
   );
 }
 
+function PhotoRequirementCard({ form, set }) {
+  const enabled = !!form.require_photos_for_done;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Photo Requirements</Text>
+      <Text style={styles.reviewHint}>
+        When ON, cleaners can't mark a job Done until they've uploaded at least one <Text style={styles.emphasis}>before</Text>
+        {' '}and one <Text style={styles.emphasis}>after</Text> photo. Great for insurance protection and consistent proof-of-work.
+      </Text>
+      <TouchableOpacity
+        style={[styles.toggleRow, enabled && styles.toggleRowOn]}
+        onPress={() => set('require_photos_for_done')(!enabled)}
+        activeOpacity={0.85}
+        testID="admin-biz-require-photos-toggle"
+      >
+        <View style={styles.toggleTextWrap}>
+          <Text style={styles.toggleLabel}>Require before + after photo to mark Done</Text>
+          <Text style={styles.toggleSubLabel}>
+            {enabled ? 'Enforcing on every job' : 'Off — cleaners can mark Done anytime'}
+          </Text>
+        </View>
+        <View style={[styles.switch, enabled && styles.switchOn]}>
+          <View style={[styles.switchKnob, enabled && styles.switchKnobOn]} />
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function HoursRow({ row, index, setHour, onRemove }) {
   return (
     <View style={styles.hourRow}>
@@ -177,6 +206,7 @@ function formToSettings(s) {
     city_line: s.city_line || '',
     website: s.website || '',
     review_url: s.review_url || '',
+    require_photos_for_done: !!s.require_photos_for_done,
     hours: (Array.isArray(s.hours) ? s.hours : []).map((h, i) => ({ ...h, _key: `row-${i}` })),
   };
 }
@@ -307,6 +337,7 @@ export default function AdminBusiness({ password, onPasswordChanged }) {
       <LogoCard logoUrl={logoUrl} logoBusy={logoBusy} onPickLogo={onPickLogo} onResetLogo={onResetLogo} />
       <ContactDetailsCard form={form} set={set} />
       <ReviewRequestsCard form={form} set={set} />
+      <PhotoRequirementCard form={form} set={set} />
       <BusinessHoursCard
         hours={form.hours}
         setHour={setHour}
@@ -422,4 +453,37 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
+  emphasis: { color: COLORS.gold, fontFamily: FONTS.bodySemiBold },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: COLORS.bg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  toggleRowOn: { borderColor: 'rgba(224,178,85,0.55)', backgroundColor: 'rgba(224,178,85,0.06)' },
+  toggleTextWrap: { flex: 1 },
+  toggleLabel: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 13.5 },
+  toggleSubLabel: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 11.5, marginTop: 3 },
+  switch: {
+    width: 44,
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: COLORS.borderStrong,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  switchOn: { backgroundColor: COLORS.gold },
+  switchKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+  },
+  switchKnobOn: { alignSelf: 'flex-end' },
 });

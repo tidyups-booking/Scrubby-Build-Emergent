@@ -714,6 +714,7 @@ DEFAULT_BUSINESS = {
     ],
     "logo_url": None,
     "review_url": "",
+    "require_photos_for_done": False,
 }
 
 
@@ -738,6 +739,7 @@ class BusinessSettingsUpdate(BaseModel):
     website: Optional[str] = None
     hours: Optional[List[HoursRow]] = None
     review_url: Optional[str] = None
+    require_photos_for_done: Optional[bool] = None
 
 
 async def _get_business_merged():
@@ -1022,6 +1024,29 @@ async def update_assignment_status(assignment_id: str, payload: AssignmentStatus
     now_iso = datetime.now(timezone.utc).isoformat()
     updates = {"status": payload.status, "status_updated_at": now_iso}
     if payload.status == "done":
+        # Insurance-protection guard: if admin has toggled "require photos for done",
+        # block the transition when this assignment lacks at least 1 before + 1 after photo.
+        biz = await _get_business_merged()
+        if biz.get("require_photos_for_done"):
+            existing = await db.assignments.find_one(
+                {"id": assignment_id, "cleaner_id": payload.cleaner_id},
+                {"_id": 0, "photos": 1},
+            )
+            if existing is None:
+                raise HTTPException(status_code=404, detail="Assignment not found")
+            photos = existing.get("photos") or []
+            has_before = any(p.get("kind") == "before" for p in photos)
+            has_after = any(p.get("kind") == "after" for p in photos)
+            if not (has_before and has_after):
+                missing = []
+                if not has_before:
+                    missing.append("before")
+                if not has_after:
+                    missing.append("after")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"At least one {' and one '.join(missing)} photo is required before marking this job Done.",
+                )
         # Atomic transition-to-done: only the FIRST request that flips this doc's status
         # to 'done' will match; a rapid double-tap by the cleaner will hit the second
         # branch and NOT re-schedule the review SMS.

@@ -230,3 +230,79 @@ class TestSendReview:
                 json={"review_url": ""},
                 headers={**admin_headers, "Content-Type": "application/json"},
             )
+
+
+# --------------------------- require photos to mark done ---------------------------
+
+class TestRequirePhotosForDone:
+    def _tiny_png(self):
+        return bytes.fromhex(
+            "89504E470D0A1A0A0000000D4948445200000001000000010806000000"
+            "1F15C4890000000D49444154789C63F80F00010101006D9DBAB50000"
+            "000049454E44AE426082"
+        )
+
+    @pytest.fixture()
+    def enable_flag(self, admin_headers):
+        requests.put(
+            f"{BASE_URL}/api/app-settings",
+            json={"require_photos_for_done": True},
+            headers={**admin_headers, "Content-Type": "application/json"},
+        )
+        yield
+        requests.put(
+            f"{BASE_URL}/api/app-settings",
+            json={"require_photos_for_done": False},
+            headers={**admin_headers, "Content-Type": "application/json"},
+        )
+
+    def test_flag_defaults_off_in_settings(self):
+        g = requests.get(f"{BASE_URL}/api/app-settings").json()
+        assert "require_photos_for_done" in g
+
+    def test_blocks_done_when_no_photos(self, admin_headers, enable_flag, seed_cleaner_and_assignment):
+        s = seed_cleaner_and_assignment
+        r = requests.post(
+            f"{BASE_URL}/api/assignments/{s['assignment']['id']}/status",
+            json={"cleaner_id": s["cleaner_id"], "pin": CLEANER_PIN, "status": "done"},
+        )
+        assert r.status_code == 400
+        assert "before" in r.json()["detail"].lower() and "after" in r.json()["detail"].lower()
+
+    def test_blocks_done_with_only_before(self, admin_headers, enable_flag, seed_cleaner_and_assignment):
+        s = seed_cleaner_and_assignment
+        # upload before-only
+        requests.post(
+            f"{BASE_URL}/api/assignments/{s['assignment']['id']}/photos",
+            files={"file": ("b.png", self._tiny_png(), "image/png")},
+            data={"kind": "before", "cleaner_id": s["cleaner_id"], "pin": CLEANER_PIN},
+        )
+        r = requests.post(
+            f"{BASE_URL}/api/assignments/{s['assignment']['id']}/status",
+            json={"cleaner_id": s["cleaner_id"], "pin": CLEANER_PIN, "status": "done"},
+        )
+        assert r.status_code == 400
+        assert "after" in r.json()["detail"].lower()
+
+    def test_allows_done_with_both(self, admin_headers, enable_flag, seed_cleaner_and_assignment):
+        s = seed_cleaner_and_assignment
+        for kind in ("before", "after"):
+            requests.post(
+                f"{BASE_URL}/api/assignments/{s['assignment']['id']}/photos",
+                files={"file": (f"{kind}.png", self._tiny_png(), "image/png")},
+                data={"kind": kind, "cleaner_id": s["cleaner_id"], "pin": CLEANER_PIN},
+            )
+        r = requests.post(
+            f"{BASE_URL}/api/assignments/{s['assignment']['id']}/status",
+            json={"cleaner_id": s["cleaner_id"], "pin": CLEANER_PIN, "status": "done"},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["status"] == "done"
+
+    def test_flag_off_allows_done_without_photos(self, admin_headers, seed_cleaner_and_assignment):
+        # flag NOT enabled → legacy behavior
+        r = requests.post(
+            f"{BASE_URL}/api/assignments/{seed_cleaner_and_assignment['assignment']['id']}/status",
+            json={"cleaner_id": seed_cleaner_and_assignment["cleaner_id"], "pin": CLEANER_PIN, "status": "done"},
+        )
+        assert r.status_code == 200
