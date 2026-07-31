@@ -44,12 +44,27 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
         }
       }
       const result = Platform.OS === 'web'
-        ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 })
+        ? await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+            allowsMultipleSelection: true,
+            selectionLimit: 10,
+          })
         : await ImagePicker.launchCameraAsync({ quality: 0.8 });
-      if (result.canceled || !result.assets || !result.assets[0]) return;
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
       setBusy(true);
-      const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, result.assets[0]);
-      onJobChange({ ...job, photos: [...(job.photos || []), photo] });
+      const uploaded = [];
+      for (const asset of result.assets) {
+        try {
+          const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
+          uploaded.push(photo);
+        } catch (e) {
+          setError(e.message || 'One or more photos failed to upload');
+        }
+      }
+      if (uploaded.length) {
+        onJobChange({ ...job, photos: [...(job.photos || []), ...uploaded] });
+      }
     } catch (e) {
       setError(e.message || 'Photo upload failed');
     } finally {
@@ -71,7 +86,9 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
   return (
     <View style={styles.photoBlock} testID={`cleaner-photo-${kind}`}>
       <View style={styles.photoHeader}>
-        <Text style={styles.photoLabel}>{label} photos</Text>
+        <Text style={styles.photoLabel}>
+          {label} photos{photos.length > 0 ? ` (${photos.length})` : ''}
+        </Text>
         <TouchableOpacity
           style={styles.photoAdd}
           onPress={onAdd}
@@ -83,7 +100,11 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
           ) : (
             <>
               <Ionicons name={Platform.OS === 'web' ? 'cloud-upload' : 'camera'} size={14} color={COLORS.pink} />
-              <Text style={styles.photoAddText}>{Platform.OS === 'web' ? 'Upload' : 'Snap'}</Text>
+              <Text style={styles.photoAddText}>
+                {photos.length > 0
+                  ? (Platform.OS === 'web' ? 'Add more' : 'Snap another')
+                  : (Platform.OS === 'web' ? 'Upload' : 'Snap')}
+              </Text>
             </>
           )}
         </TouchableOpacity>

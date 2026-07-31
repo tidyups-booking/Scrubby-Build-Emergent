@@ -65,6 +65,139 @@ function CleanerFilter({ cleaners, selected, onSelect }) {
   );
 }
 
+function ViewModeToggle({ mode, onChange }) {
+  return (
+    <View style={styles.modeToggle} testID="history-mode-toggle">
+      <TouchableOpacity
+        style={[styles.modeBtn, mode === 'recent' && styles.modeBtnActive]}
+        onPress={() => onChange('recent')}
+        testID="history-mode-recent"
+      >
+        <Ionicons name="time" size={13} color={mode === 'recent' ? '#fff' : COLORS.textMuted} />
+        <Text style={[styles.modeBtnText, mode === 'recent' && styles.modeBtnTextActive]}>Recent</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.modeBtn, mode === 'clients' && styles.modeBtnActive]}
+        onPress={() => onChange('clients')}
+        testID="history-mode-clients"
+      >
+        <Ionicons name="people" size={13} color={mode === 'clients' ? '#fff' : COLORS.textMuted} />
+        <Text style={[styles.modeBtnText, mode === 'clients' && styles.modeBtnTextActive]}>By Client</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function clientKey(item) {
+  const name = (item.customer_name || 'Unknown').trim().toLowerCase();
+  const phone = (item.phone || '').replace(/\D/g, '');
+  return `${name}|${phone}`;
+}
+
+function groupByClient(items) {
+  const map = new Map();
+  for (const it of items) {
+    const key = clientKey(it);
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        customer_name: it.customer_name || 'Unknown',
+        phone: it.phone || '',
+        visits: [],
+      });
+    }
+    map.get(key).visits.push(it);
+  }
+  // Sort each client's visits newest first, and sort clients by most-recent visit
+  const groups = Array.from(map.values()).map((g) => ({
+    ...g,
+    visits: g.visits.slice().sort(
+      (a, b) => new Date(b.completed_at || b.status_updated_at || 0) - new Date(a.completed_at || a.status_updated_at || 0)
+    ),
+  }));
+  groups.sort(
+    (a, b) => new Date(b.visits[0]?.completed_at || 0) - new Date(a.visits[0]?.completed_at || 0)
+  );
+  return groups;
+}
+
+function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId }) {
+  const [expanded, setExpanded] = useState(true);
+  const totalPhotos = group.visits.reduce((sum, v) => sum + (v.photos?.length || 0), 0);
+  const lastVisit = group.visits[0];
+  const telHref = `tel:${(group.phone || '').replace(/[^+\d]/g, '')}`;
+  return (
+    <View style={styles.clientCard} testID={`history-client-${group.key}`}>
+      <TouchableOpacity
+        style={styles.clientHeader}
+        onPress={() => setExpanded((v) => !v)}
+        activeOpacity={0.85}
+        testID={`history-client-toggle-${group.key}`}
+      >
+        <View style={styles.clientHeaderMain}>
+          <Text style={styles.clientName}>{group.customer_name}</Text>
+          <Text style={styles.clientSubtitle}>
+            {group.visits.length} visit{group.visits.length === 1 ? '' : 's'} · {totalPhotos} photo{totalPhotos === 1 ? '' : 's'}
+            {lastVisit ? ` · last: ${formatDate(lastVisit.completed_at)}` : ''}
+          </Text>
+        </View>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textMuted} />
+      </TouchableOpacity>
+      {group.phone ? (
+        <TouchableOpacity style={styles.cardRow} onPress={() => Linking.openURL(telHref)}>
+          <Ionicons name="call" size={13} color={COLORS.pink} />
+          <Text style={[styles.rowText, styles.phoneText]}>{group.phone}</Text>
+        </TouchableOpacity>
+      ) : null}
+      {expanded ? (
+        <View style={styles.visitsList}>
+          {group.visits.map((v) => (
+            <View key={v.id} style={styles.visitCard} testID={`history-visit-${v.id}`}>
+              <View style={styles.cardTop}>
+                <Text style={styles.visitDate}>{formatDate(v.completed_at || v.status_updated_at)}</Text>
+                <Text style={styles.serviceChip}>{v.service_type}</Text>
+              </View>
+              <View style={styles.cardRow}>
+                <Ionicons name="person" size={12} color={COLORS.violetLight} />
+                <Text style={[styles.rowText, styles.rowTextSoft]}>{v.cleaner_name || 'Unknown cleaner'}</Text>
+              </View>
+              {v.address ? (
+                <View style={styles.cardRow}>
+                  <Ionicons name="location" size={12} color={COLORS.textMuted} />
+                  <Text style={[styles.rowText, styles.rowTextSoft]} numberOfLines={1}>{v.address}</Text>
+                </View>
+              ) : null}
+              <TouchableOpacity onPress={() => onOpenPhoto(v)} activeOpacity={0.85}>
+                <PhotoStrip photos={v.photos} />
+              </TouchableOpacity>
+              {(v.photos || []).length === 0 ? (
+                <Text style={styles.noVisitPhotos}>No photos on this visit.</Text>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.miniReviewBtn, sendingId === v.id && styles.reviewBtnBusy]}
+                onPress={() => onSendReview(v)}
+                disabled={sendingId === v.id}
+                testID={`history-send-review-${v.id}`}
+              >
+                {sendingId === v.id ? (
+                  <ActivityIndicator size="small" color={COLORS.pink} />
+                ) : (
+                  <>
+                    <Ionicons name={v.review_sent_at ? 'send' : 'star'} size={12} color={COLORS.pink} />
+                    <Text style={styles.miniReviewBtnText}>
+                      {v.review_sent_at ? 'Resend review' : 'Send review link'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function PhotoStrip({ photos }) {
   if (!photos || photos.length === 0) return null;
   return (
@@ -193,6 +326,7 @@ export default function AdminHistory({ password }) {
   const [notice, setNotice] = useState('');
   const [sendingId, setSendingId] = useState(null);
   const [openPhoto, setOpenPhoto] = useState(null);
+  const [mode, setMode] = useState('recent');
 
   const load = useCallback(async (cleanerId) => {
     try {
@@ -244,11 +378,13 @@ export default function AdminHistory({ password }) {
     );
   }
 
+  const groups = mode === 'clients' ? groupByClient(items) : null;
+
   return (
     <>
       <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
+        data={mode === 'clients' ? groups : items}
+        keyExtractor={(item) => (mode === 'clients' ? item.key : item.id)}
         contentContainerStyle={LIST_CONTENT_STYLE}
         refreshControl={
           <RefreshControl
@@ -262,6 +398,7 @@ export default function AdminHistory({ password }) {
         }
         ListHeaderComponent={
           <View>
+            <ViewModeToggle mode={mode} onChange={setMode} />
             <CleanerFilter cleaners={cleaners} selected={selectedCleaner} onSelect={setSelectedCleaner} />
             {error ? (
               <Text style={styles.error} testID="history-error">
@@ -275,14 +412,23 @@ export default function AdminHistory({ password }) {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <HistoryCard
-            item={item}
-            onSendReview={onSendReview}
-            sendingId={sendingId}
-            onOpenPhoto={setOpenPhoto}
-          />
-        )}
+        renderItem={({ item }) =>
+          mode === 'clients' ? (
+            <ClientGroupCard
+              group={item}
+              onOpenPhoto={setOpenPhoto}
+              onSendReview={onSendReview}
+              sendingId={sendingId}
+            />
+          ) : (
+            <HistoryCard
+              item={item}
+              onSendReview={onSendReview}
+              sendingId={sendingId}
+              onOpenPhoto={setOpenPhoto}
+            />
+          )
+        }
         ListEmptyComponent={
           <View style={[styles.center, styles.emptyPad]}>
             <MaterialCommunityIcons name="clipboard-check-outline" size={44} color={COLORS.textMuted} />
@@ -442,4 +588,64 @@ const styles = StyleSheet.create({
   viewerKind: { color: COLORS.textSoft, fontFamily: FONTS.bodySemiBold, fontSize: 12, marginBottom: 8 },
   viewerImg: { width: '100%', height: 260, borderRadius: 10, backgroundColor: COLORS.bg },
   viewerEmpty: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13.5, textAlign: 'center', marginTop: 40 },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    backgroundColor: COLORS.panelSoft,
+    borderRadius: 999,
+    padding: 4,
+    alignSelf: 'flex-start',
+  },
+  modeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  modeBtnActive: { backgroundColor: COLORS.violet },
+  modeBtnText: { color: COLORS.textMuted, fontFamily: FONTS.bodySemiBold, fontSize: 12 },
+  modeBtnTextActive: { color: '#fff' },
+  clientCard: {
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 14,
+  },
+  clientHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingBottom: 6,
+  },
+  clientHeaderMain: { flex: 1 },
+  clientName: { color: COLORS.text, fontFamily: FONTS.heading, fontSize: 17 },
+  clientSubtitle: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 12, marginTop: 2 },
+  visitsList: { gap: 10, marginTop: 10 },
+  visitCard: {
+    backgroundColor: COLORS.panelSoft,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 10,
+  },
+  visitDate: { color: COLORS.text, fontFamily: FONTS.bodySemiBold, fontSize: 13.5, flex: 1 },
+  noVisitPhotos: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 11.5, fontStyle: 'italic', marginTop: 6 },
+  miniReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,95,176,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,95,176,0.3)',
+    borderRadius: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+  },
+  miniReviewBtnText: { color: COLORS.pink, fontFamily: FONTS.bodySemiBold, fontSize: 11.5 },
 });
