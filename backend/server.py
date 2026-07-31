@@ -46,7 +46,13 @@ def _schedule_bg(coro, name: str = "bg"):
 
 
 # --- Signed URLs for job-proof photos (privacy: browsers can't add auth headers to <img>) ---
-_PROOF_URL_SECRET = os.environ.get("PROOF_URL_SECRET") or _secrets.token_urlsafe(48)
+_PROOF_URL_SECRET_ENV = os.environ.get("PROOF_URL_SECRET")
+if not _PROOF_URL_SECRET_ENV:
+    logging.getLogger(__name__).warning(
+        "PROOF_URL_SECRET is not set — signed proof URLs will use an ephemeral key that resets "
+        "on every restart and differs between workers. Set a stable value in backend/.env."
+    )
+_PROOF_URL_SECRET = _PROOF_URL_SECRET_ENV or _secrets.token_urlsafe(48)
 _PROOF_URL_TTL_SECONDS = 60 * 60  # 1h — long enough for admin/cleaner to browse, short enough that leaked URLs expire
 
 
@@ -1152,23 +1158,26 @@ async def merge_client(payload: ClientMergeRequest, x_admin_password: Optional[s
     if from_key == into_key:
         raise HTTPException(status_code=400, detail="Source and target are already the same client")
 
-    # Find all assignments matching the SOURCE (name+phone digits). Since we don't store
-    # the key on assignments, we scan candidates by canonical name and match digits-only phone.
-    from_name_lc = (payload.from_name or "").strip().lower()
+    # Two-phase merge: (1) find candidate assignment IDs by name (case-insensitive), then
+    # filter to those whose digits-only phone matches the source; (2) do ONE atomic
+    # update_many by IDs. This gives all-or-nothing semantics for the write itself and
+    # avoids the per-doc loop that could partial-fail.
     from_phone_digits = re.sub(r"\D", "", payload.from_phone or "")
+    name_regex = {"$regex": f"^{re.escape(payload.from_name.strip())}$", "$options": "i"}
     candidates = await db.assignments.find(
-        {"customer_name": {"$regex": f"^{re.escape(payload.from_name.strip())}$", "$options": "i"}}
-    ).to_list(1000)
+        {"customer_name": name_regex}, {"_id": 0, "id": 1, "phone": 1}
+    ).to_list(None)
+    ids_to_move = [
+        c["id"] for c in candidates
+        if re.sub(r"\D", "", c.get("phone") or "") == from_phone_digits
+    ]
     moved = 0
-    for a in candidates:
-        adigits = re.sub(r"\D", "", a.get("phone") or "")
-        if adigits != from_phone_digits:
-            continue
-        await db.assignments.update_one(
-            {"id": a["id"]},
+    if ids_to_move:
+        result = await db.assignments.update_many(
+            {"id": {"$in": ids_to_move}},
             {"$set": {"customer_name": payload.into_name, "phone": payload.into_phone or ""}},
         )
-        moved += 1
+        moved = result.modified_count
 
     # Merge notes: concatenate source notes into target if both present.
     src_notes_doc = await db.client_notes.find_one({"key": from_key})
@@ -1416,7 +1425,8 @@ async def admin_digest_preview(x_admin_password: Optional[str] = Header(default=
 
 
 async def _digest_scheduler_loop():
-    """Fires once per day at DIGEST_HOUR (local, per DIGEST_TZ_OFFSET_HOURS). Idempotent via last_sent_local_date."""
+    """Fires once per day at DIGEST_HOUR (local, per DIGEST_TZ_OFFSET_HOURS). Idempotent via
+    an atomic day-claim on `digest_meta` so multiple workers can safely coexist."""
     try:
         target_hour = int(os.environ.get("DIGEST_HOUR", "21"))  # 9pm default
     except ValueError:
@@ -1430,10 +1440,26 @@ async def _digest_scheduler_loop():
                 tz_off = -7
             local_now = datetime.now(timezone.utc) + timedelta(hours=tz_off)
             local_today = local_now.date().isoformat()
-            meta = await db.app_settings.find_one({"key": "digest_meta"}) or {}
-            already_sent_today = meta.get("last_sent_local_date") == local_today
-            if local_now.hour >= target_hour and not already_sent_today:
-                await _send_digest_now()
+            if local_now.hour >= target_hour:
+                # Atomic day-claim: the FIRST worker to update `last_sent_local_date` to today
+                # is the one that actually sends. Runners-up see modified_count == 0 and skip.
+                claim = await db.app_settings.update_one(
+                    {"key": "digest_meta", "last_sent_local_date": {"$ne": local_today}},
+                    {"$set": {"key": "digest_meta", "last_sent_local_date": local_today,
+                              "claimed_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True,
+                )
+                # `update_one` with upsert may create the doc on first ever run (upserted_id set)
+                # or claim by updating (modified_count == 1). Both count as this worker winning.
+                if claim.modified_count == 1 or claim.upserted_id is not None:
+                    # We won the claim — send. If send fails, roll back the claim so tomorrow
+                    # (or the next scheduler tick) can retry.
+                    result = await _send_digest_now()
+                    if not result.get("sent"):
+                        await db.app_settings.update_one(
+                            {"key": "digest_meta", "last_sent_local_date": local_today},
+                            {"$set": {"last_sent_local_date": ""}},
+                        )
             # sleep until the top of the next hour (max 1h)
             next_wake = local_now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
             sleep_s = max(60, min(3600, int((next_wake - local_now).total_seconds())))

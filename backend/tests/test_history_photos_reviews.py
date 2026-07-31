@@ -306,3 +306,69 @@ class TestRequirePhotosForDone:
             json={"cleaner_id": seed_cleaner_and_assignment["cleaner_id"], "pin": CLEANER_PIN, "status": "done"},
         )
         assert r.status_code == 200
+
+
+
+# --------------------------- client merge ---------------------------
+
+class TestClientMerge:
+    def _seed_visit(self, admin_headers, cid, name, phone):
+        r = requests.post(
+            f"{BASE_URL}/api/assignments",
+            json={
+                "quote_id": f"merge-{uuid.uuid4()}",
+                "cleaner_id": cid,
+                "customer_name": name,
+                "service_type": "Deep Clean",
+                "phone": phone,
+            },
+            headers={**admin_headers, "Content-Type": "application/json"},
+        )
+        assert r.status_code == 200, r.text
+        aid = r.json()["id"]
+        requests.post(
+            f"{BASE_URL}/api/assignments/{aid}/status",
+            json={"cleaner_id": cid, "pin": CLEANER_PIN, "status": "done"},
+        )
+        return aid
+
+    def test_merge_moves_all_matching_visits_atomically(self, admin_headers):
+        # Seed a cleaner + 3 visits under "TestMergeA" and 1 under "TestMergeB" (same phone).
+        cn = requests.post(
+            f"{BASE_URL}/api/cleaners/checkin",
+            json={"name": f"MergeTestCleaner_{uuid.uuid4().hex[:6]}", "pin": CLEANER_PIN},
+        ).json()
+        cid = cn["cleaner_id"]
+        phone_src = "204-555-9101"
+        phone_tgt = "204-555-9101"
+        for _ in range(3):
+            self._seed_visit(admin_headers, cid, "TestMergeA", phone_src)
+        self._seed_visit(admin_headers, cid, "TestMergeB", phone_tgt)
+
+        try:
+            r = requests.post(
+                f"{BASE_URL}/api/clients/merge",
+                json={
+                    "from_name": "TestMergeA",
+                    "from_phone": phone_src,
+                    "into_name": "TestMergeB",
+                    "into_phone": phone_tgt,
+                },
+                headers={**admin_headers, "Content-Type": "application/json"},
+            )
+            assert r.status_code == 200, r.text
+            assert r.json()["moved_assignments"] == 3
+        finally:
+            # Cleanup — remove seeded rows so future tests aren't polluted.
+            hist = requests.get(f"{BASE_URL}/api/assignments", headers=admin_headers).json()
+            for a in hist:
+                if a.get("customer_name") in ("TestMergeA", "TestMergeB") and a.get("cleaner_id") == cid:
+                    requests.delete(f"{BASE_URL}/api/assignments/{a['id']}", headers=admin_headers)
+
+    def test_merge_rejects_same_source_and_target(self, admin_headers):
+        r = requests.post(
+            f"{BASE_URL}/api/clients/merge",
+            json={"from_name": "Same", "from_phone": "555", "into_name": "same", "into_phone": "555"},
+            headers={**admin_headers, "Content-Type": "application/json"},
+        )
+        assert r.status_code == 400
