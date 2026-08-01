@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate, fetchClientNotes, saveClientNotes, mergeClients } from '../lib/api';
+import { fetchAssignmentHistory, fetchCleaners, sendReviewRequest, resolveImageUrl, formatDate, formatDuration, fetchClientNotes, saveClientNotes, mergeClients } from '../lib/api';
 
 function timeAgoShort(iso) {
   if (!iso) return '';
@@ -294,6 +294,12 @@ function ClientGroupCard({ group, onOpenPhoto, onSendReview, sendingId, password
                 <Ionicons name="person" size={12} color={COLORS.violetLight} />
                 <Text style={[styles.rowText, styles.rowTextSoft]}>{v.cleaner_name || 'Unknown cleaner'}</Text>
               </View>
+              {v.duration_seconds != null ? (
+                <View style={styles.cardRow}>
+                  <Ionicons name="timer-outline" size={12} color={COLORS.gold} />
+                  <Text style={[styles.rowText, styles.rowTextSoft, styles.durationText]}>Job time: {formatDuration(v.duration_seconds)}</Text>
+                </View>
+              ) : null}
               {v.address ? (
                 <View style={styles.cardRow}>
                   <Ionicons name="location" size={12} color={COLORS.textMuted} />
@@ -403,6 +409,12 @@ function HistoryCard({ item, onSendReview, sendingId, onOpenPhoto }) {
         <Text style={styles.rowText}>{item.cleaner_name || 'Unknown cleaner'}</Text>
         <Text style={styles.serviceChip}>{item.service_type}</Text>
       </View>
+      {item.duration_seconds != null ? (
+        <View style={styles.cardRow} testID={`history-duration-${item.id}`}>
+          <Ionicons name="timer-outline" size={14} color={COLORS.gold} />
+          <Text style={[styles.rowText, styles.durationText]}>Job time: {formatDuration(item.duration_seconds)}</Text>
+        </View>
+      ) : null}
       {item.address ? (
         <TouchableOpacity
           style={styles.cardRow}
@@ -662,6 +674,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  durationText: { color: COLORS.gold, fontFamily: FONTS.bodySemiBold },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   metaChip: {
     flexDirection: 'row',

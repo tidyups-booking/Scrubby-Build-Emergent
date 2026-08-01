@@ -937,7 +937,22 @@ class AssignmentCreate(BaseModel):
 
 ASSIGNMENT_FIELDS = ("id", "quote_id", "cleaner_id", "cleaner_name", "customer_name", "service_type",
                      "address", "phone", "preferred_date", "message", "status", "created_at",
-                     "status_updated_at", "completed_at", "photos", "review_sent_at")
+                     "status_updated_at", "started_at", "completed_at", "photos", "review_sent_at")
+
+
+def _job_duration_seconds(doc) -> Optional[int]:
+    """Return the number of seconds the cleaner was actively working the job
+    (started_at -> completed_at). None until both timestamps exist."""
+    started, completed = doc.get("started_at"), doc.get("completed_at")
+    if not started or not completed:
+        return None
+    try:
+        s = datetime.fromisoformat(started.replace("Z", "+00:00"))
+        c = datetime.fromisoformat(completed.replace("Z", "+00:00"))
+        delta = (c - s).total_seconds()
+        return int(delta) if delta >= 0 else None
+    except (ValueError, AttributeError):
+        return None
 
 
 def _client_key(name: Optional[str], phone: Optional[str]) -> str:
@@ -964,6 +979,7 @@ def _clean_assignment(doc, notes: str = ""):
         {**p, "url": _apply_proof_signature(p.get("url", ""))} for p in photos
     ]
     out["client_notes"] = notes
+    out["duration_seconds"] = _job_duration_seconds(doc)
     return out
 
 
@@ -1029,6 +1045,16 @@ async def update_assignment_status(assignment_id: str, payload: AssignmentStatus
         raise HTTPException(status_code=400, detail="Invalid status")
     now_iso = datetime.now(timezone.utc).isoformat()
     updates = {"status": payload.status, "status_updated_at": now_iso}
+    if payload.status == "cleaning":
+        # Stamp started_at the FIRST time the cleaner marks the job "cleaning" — the
+        # start of the timer. Uses $setOnInsert-style semantics via a separate query
+        # below so re-tapping "cleaning" doesn't reset the timer.
+        existing = await db.assignments.find_one(
+            {"id": assignment_id, "cleaner_id": payload.cleaner_id},
+            {"_id": 0, "started_at": 1},
+        )
+        if existing is not None and not existing.get("started_at"):
+            updates["started_at"] = now_iso
     if payload.status == "done":
         # Insurance-protection guard: if admin has toggled "require photos for done",
         # block the transition when this assignment lacks at least 1 before + 1 after photo.

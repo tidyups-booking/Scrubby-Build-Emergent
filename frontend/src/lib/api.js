@@ -446,6 +446,17 @@ export async function sendOwnerDigestNow(password) {
   return res.json();
 }
 
+export function formatDuration(seconds) {
+  if (seconds == null || Number.isNaN(seconds) || seconds < 0) return null;
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  const mins = m % 60;
+  if (h > 0) return mins > 0 ? `${h}h ${mins}m` : `${h}h`;
+  return `${m}m`;
+}
+
 
 export function formatDate(iso) {
   try {

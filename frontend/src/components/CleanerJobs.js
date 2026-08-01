@@ -3,8 +3,28 @@ import { View, Text, Image, TouchableOpacity, Linking, ActivityIndicator, Platfo
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
-import { uploadAssignmentPhoto, deleteAssignmentPhoto, resolveImageUrl } from '../lib/api';
+import { uploadAssignmentPhoto, deleteAssignmentPhoto, resolveImageUrl, formatDuration } from '../lib/api';
 import RapidCameraModal from './RapidCameraModal';
+
+// Live-updating job timer. Shows "1h 12m" once the cleaner marks "Cleaning".
+// Re-renders every 30s so cleaners can see progress accumulating.
+function JobTimer({ startedAt }) {
+  const [now, setNow] = useState(Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  if (!startedAt) return null;
+  const started = new Date(startedAt).getTime();
+  if (Number.isNaN(started)) return null;
+  const secs = Math.max(0, Math.floor((now - started) / 1000));
+  return (
+    <View style={styles.timerRow}>
+      <Ionicons name="timer-outline" size={13} color={COLORS.gold} />
+      <Text style={styles.timerText}>On the clock: {formatDuration(secs) || '0s'}</Text>
+    </View>
+  );
+}
 
 const JOB_STEPS = [
   { key: 'on_the_way', label: 'On my way', icon: 'car' },
@@ -176,6 +196,7 @@ export default function CleanerJobs({ jobs, onStatus, cleaner, onJobChange, setE
               <Text style={styles.jobName}>{job.customer_name}</Text>
               <Text style={styles.jobService}>{job.service_type}</Text>
             </View>
+            {job.started_at && job.status !== 'done' ? <JobTimer startedAt={job.started_at} /> : null}
             {job.address ? (
               <TouchableOpacity
                 style={styles.jobRow}
@@ -284,6 +305,20 @@ const styles = StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   jobRowText: { color: COLORS.textSoft, fontFamily: FONTS.body, fontSize: 13.5, flex: 1 },
   jobMessage: { color: COLORS.textMuted, fontFamily: FONTS.body, fontSize: 13, fontStyle: 'italic', marginTop: 4, lineHeight: 18 },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    backgroundColor: 'rgba(224,178,85,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(224,178,85,0.28)',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+  },
+  timerText: { color: COLORS.gold, fontFamily: FONTS.bodySemiBold, fontSize: 12 },
   clientNotesBox: {
     marginTop: 10,
     backgroundColor: 'rgba(224,178,85,0.1)',
