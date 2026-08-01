@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, Linking, ActivityIndicator, Platform, Alert, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import { uploadAssignmentPhoto, deleteAssignmentPhoto, resolveImageUrl } from '../lib/api';
+import RapidCameraModal from './RapidCameraModal';
 
 const JOB_STEPS = [
   { key: 'on_the_way', label: 'On my way', icon: 'car' },
@@ -30,68 +31,52 @@ const PhotoThumb = React.memo(function PhotoThumb({ url }) {
 
 function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
   const [busy, setBusy] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const photos = (job.photos || []).filter((p) => p.kind === kind);
   const label = kind === 'before' ? 'Before' : 'After';
 
+  // Called every time the rapid-camera modal captures a shot. Uploads in the
+  // background so the shutter stays responsive for the next tap.
+  const uploadOne = useCallback(async (asset) => {
+    try {
+      const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
+      onJobChange({ ...job, photos: [...(job.photos || []), photo] });
+    } catch (e) {
+      setError(e.message || 'One photo failed to upload — keep shooting');
+    }
+  }, [job, kind, cleaner, onJobChange, setError]);
+
   const onAdd = async () => {
     setError('');
+    if (Platform.OS !== 'web') {
+      // Native: open the rapid-fire custom camera. Cleaner taps shutter,
+      // photo auto-uploads in the background, camera stays open.
+      setCameraOpen(true);
+      return;
+    }
+    // Web: gallery multi-select (browsers don't let us build a persistent camera view).
     try {
-      if (Platform.OS !== 'web') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          setError('Camera permission is required to snap photos.');
-          return;
-        }
-      }
-      if (Platform.OS === 'web') {
-        // Web: multi-select gallery, batch upload
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 0.8,
-          allowsMultipleSelection: true,
-          selectionLimit: 50,
-        });
-        if (result.canceled || !result.assets || result.assets.length === 0) return;
-        setBusy(true);
-        const uploaded = [];
-        for (const asset of result.assets) {
-          try {
-            const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
-            uploaded.push(photo);
-          } catch (e) {
-            setError(e.message || 'One or more photos failed to upload');
-          }
-        }
-        if (uploaded.length) {
-          onJobChange({ ...job, photos: [...(job.photos || []), ...uploaded] });
-        }
-        setBusy(false);
-        return;
-      }
-      // Native: rapid-fire mode — camera re-opens after every shot until cleaner cancels.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: true,
+        selectionLimit: 50,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
       setBusy(true);
-      let running = true;
-      let currentPhotos = job.photos || [];
-      const MAX_BURST = 50;
-      let count = 0;
-      while (running && count < MAX_BURST) {
-        const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-        if (result.canceled || !result.assets || !result.assets[0]) {
-          running = false;
-          break;
-        }
-        count += 1;
+      const uploaded = [];
+      for (const asset of result.assets) {
         try {
-          const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, result.assets[0]);
-          currentPhotos = [...currentPhotos, photo];
-          onJobChange({ ...job, photos: currentPhotos });
+          const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
+          uploaded.push(photo);
         } catch (e) {
-          setError(e.message || 'One photo failed to upload — keep shooting');
+          setError(e.message || 'One or more photos failed to upload');
         }
       }
-      setBusy(false);
-    } catch (e) {
-      setError(e.message || 'Photo upload failed');
+      if (uploaded.length) {
+        onJobChange({ ...job, photos: [...(job.photos || []), ...uploaded] });
+      }
+    } finally {
       setBusy(false);
     }
   };
@@ -151,6 +136,12 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
           ))}
         </View>
       )}
+      <RapidCameraModal
+        visible={cameraOpen}
+        kind={kind}
+        onClose={() => setCameraOpen(false)}
+        onCapture={uploadOne}
+      />
     </View>
   );
 }
