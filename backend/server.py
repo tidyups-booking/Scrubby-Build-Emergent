@@ -1467,19 +1467,26 @@ async def _digest_scheduler_loop():
             local_now = datetime.now(timezone.utc) + timedelta(hours=tz_off)
             local_today = local_now.date().isoformat()
             if local_now.hour >= target_hour:
-                # Atomic day-claim: the FIRST worker to update `last_sent_local_date` to today
-                # is the one that actually sends. Runners-up see modified_count == 0 and skip.
-                claim = await db.app_settings.update_one(
-                    {"key": "digest_meta", "last_sent_local_date": {"$ne": local_today}},
-                    {"$set": {"key": "digest_meta", "last_sent_local_date": local_today,
-                              "claimed_at": datetime.now(timezone.utc).isoformat()}},
+                # Ensure the singleton `digest_meta` doc exists exactly once. `$setOnInsert`
+                # + upsert is a true no-op if the doc already exists — no duplicates. This is
+                # required because MongoDB's upsert on a `$ne` filter with an already-matching
+                # value silently inserts a NEW doc (that was the bug in the original claim).
+                await db.app_settings.update_one(
+                    {"key": "digest_meta"},
+                    {"$setOnInsert": {"key": "digest_meta", "last_sent_local_date": ""}},
                     upsert=True,
                 )
-                # `update_one` with upsert may create the doc on first ever run (upserted_id set)
-                # or claim by updating (modified_count == 1). Both count as this worker winning.
-                if claim.modified_count == 1 or claim.upserted_id is not None:
-                    # We won the claim — send. If send fails, roll back the claim so tomorrow
-                    # (or the next scheduler tick) can retry.
+                # Now claim today WITHOUT upsert. Only the FIRST worker to flip
+                # `last_sent_local_date` -> today succeeds (modified_count == 1). Every
+                # subsequent tick in the same day returns modified_count == 0 and skips.
+                claim = await db.app_settings.update_one(
+                    {"key": "digest_meta", "last_sent_local_date": {"$ne": local_today}},
+                    {"$set": {"last_sent_local_date": local_today,
+                              "claimed_at": datetime.now(timezone.utc).isoformat()}},
+                )
+                if claim.modified_count == 1:
+                    # We won today's claim — send. On failure, roll the claim back so the
+                    # next tick (or the next day) can retry.
                     result = await _send_digest_now()
                     if not result.get("sent"):
                         await db.app_settings.update_one(
@@ -1518,6 +1525,17 @@ async def on_startup():
     await seed_site_images()
     await seed_app_images()
     await _load_admin_password()
+    # Clean up any duplicate digest_meta docs that may have accumulated from the old
+    # buggy upsert claim (pre-fix). Keep the one with the latest last_sent_local_date.
+    try:
+        dupes = await db.app_settings.find({"key": "digest_meta"}).to_list(50)
+        if len(dupes) > 1:
+            dupes.sort(key=lambda d: d.get("last_sent_local_date", ""), reverse=True)
+            keep_id = dupes[0]["_id"]
+            await db.app_settings.delete_many({"key": "digest_meta", "_id": {"$ne": keep_id}})
+            logger.info("Cleaned up %d duplicate digest_meta docs", len(dupes) - 1)
+    except Exception as e:
+        logger.warning("digest_meta dedupe failed: %s", e)
     # Start the nightly owner digest scheduler in the background.
     _schedule_bg(_digest_scheduler_loop(), name="digest-scheduler")
 

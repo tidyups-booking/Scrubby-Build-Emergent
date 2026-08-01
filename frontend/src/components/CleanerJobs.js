@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Linking, ActivityIndicator, Platform, Alert, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,16 +55,26 @@ function PhotoRow({ job, kind, cleaner, onJobChange, setError }) {
   const photos = (job.photos || []).filter((p) => p.kind === kind);
   const label = kind === 'before' ? 'Before' : 'After';
 
+  // The rapid camera fires `uploadOne` many times in flight. We hold the LATEST job
+  // snapshot in a ref so each concurrent completion appends to fresh state instead of
+  // overwriting via a stale closure — otherwise photos taken during a burst get lost
+  // until the next poll refresh (reviewer-found lost-update bug).
+  const jobRef = useRef(job);
+  useEffect(() => { jobRef.current = job; }, [job]);
+
   // Called every time the rapid-camera modal captures a shot. Uploads in the
   // background so the shutter stays responsive for the next tap.
   const uploadOne = useCallback(async (asset) => {
     try {
       const photo = await uploadAssignmentPhoto(job.id, kind, cleaner.cleaner_id, cleaner.pin, asset);
-      onJobChange({ ...job, photos: [...(job.photos || []), photo] });
+      const latest = jobRef.current;
+      const next = { ...latest, photos: [...(latest.photos || []), photo] };
+      jobRef.current = next; // update ref eagerly so concurrent completions see the append
+      onJobChange(next);
     } catch (e) {
       setError(e.message || 'One photo failed to upload — keep shooting');
     }
-  }, [job, kind, cleaner, onJobChange, setError]);
+  }, [job.id, kind, cleaner, onJobChange, setError]);
 
   const onAdd = async () => {
     setError('');
