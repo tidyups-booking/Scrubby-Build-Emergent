@@ -9,6 +9,7 @@ const LOCATION_TIME_INTERVAL_MS = 20000;
 const LOCATION_DISTANCE_INTERVAL_M = 40;
 const BG_TASK_NAME = 'scrubby-cleaner-location';
 const PROFILE_STORAGE_KEY = 'scrubby_cleaner_bg_profile';
+const BG_INVALID_FLAG_KEY = 'scrubby_cleaner_bg_pin_invalid';
 
 // Module-scope background task. Runs on native even when the app is backgrounded
 // or killed. Reads the cleaner profile from AsyncStorage (we can't pass args to
@@ -24,9 +25,23 @@ if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(BG_TASK_NAME)) {
       const profile = JSON.parse(raw);
       if (!profile?.cleaner_id || !profile?.pin) return;
       const latest = locations[locations.length - 1];
-      await sendCleanerLocation(profile.cleaner_id, profile.pin, latest.coords.latitude, latest.coords.longitude);
+      try {
+        await sendCleanerLocation(profile.cleaner_id, profile.pin, latest.coords.latitude, latest.coords.longitude);
+      } catch (e) {
+        // If the backend rejected our PIN (admin rotated it or removed the cleaner),
+        // stop the background task, wipe the stored profile, and drop a flag the
+        // foreground UI checks on next focus so it can prompt the cleaner to sign in
+        // again. Any other error: silently retry on next tick.
+        if (e?.code === HTTP_UNAUTHORIZED) {
+          try {
+            await Location.stopLocationUpdatesAsync(BG_TASK_NAME);
+          } catch {}
+          await AsyncStorage.multiRemove([PROFILE_STORAGE_KEY, 'scrubby_cleaner_profile']);
+          await AsyncStorage.setItem(BG_INVALID_FLAG_KEY, '1');
+        }
+      }
     } catch {
-      // background task — silent failure, next tick will retry
+      // Background task — silent failure, next tick will retry
     }
   });
 }
@@ -58,11 +73,32 @@ export function useLocationSharing(profile) {
         if (started) {
           await Location.stopLocationUpdatesAsync(BG_TASK_NAME);
         }
-        await AsyncStorage.removeItem(PROFILE_STORAGE_KEY);
+        await AsyncStorage.multiRemove([PROFILE_STORAGE_KEY, BG_INVALID_FLAG_KEY]);
       } catch {}
     }
     setSharing(false);
     setBackgroundActive(false);
+  }, []);
+
+  // Poll AsyncStorage for the "background PIN invalid" flag so we can surface a
+  // user-facing prompt whenever the background task detects a 401.
+  useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
+    let cancelled = false;
+    const checkFlag = async () => {
+      try {
+        const flag = await AsyncStorage.getItem(BG_INVALID_FLAG_KEY);
+        if (flag && !cancelled) {
+          setError('The cleaner PIN was changed — please sign out and check in again.');
+          await AsyncStorage.removeItem(BG_INVALID_FLAG_KEY);
+          setSharing(false);
+          setBackgroundActive(false);
+        }
+      } catch {}
+    };
+    checkFlag();
+    const t = setInterval(checkFlag, 15000);
+    return () => { cancelled = true; clearInterval(t); };
   }, []);
 
   useEffect(() => {
