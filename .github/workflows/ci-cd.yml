@@ -70,7 +70,7 @@ jobs:
       
       - name: Upload coverage reports
         if: always()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: ${{ env.WORKING_DIRECTORY }}/coverage/coverage-final.json
           flags: unittests
@@ -180,7 +180,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ${{ env.WORKING_DIRECTORY }}
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        if: ${{ vars.VERCEL_DEPLOY_ENABLED == 'true' }}
         continue-on-error: true
       
       - name: Deployment Status
